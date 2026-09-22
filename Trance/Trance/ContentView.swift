@@ -9,8 +9,27 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        Color.white
-            .ignoresSafeArea()
+        NavigationStack {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 16) {
+                    Text("Sessioner")
+                        .font(.largeTitle)
+                    ForEach(0..<40) { i in
+                        HStack {
+                            Text("Session \(i)")
+                        }
+                        .padding()
+                        .padding(.vertical, 32)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(80)
+                    }
+                }
+                .padding(.horizontal)
+            }
+            .navigationTitle("Home")
+            .navigationBarTitleDisplayMode(.large)
+        }
     }
 }
 

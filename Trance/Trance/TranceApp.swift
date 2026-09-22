@@ -11,7 +11,17 @@ import SwiftUI
 struct TranceApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            TabView {
+                Tab("Hjem", systemImage: "house.fill") {
+                    ContentView()
+                }
+                Tab("Sessioner", systemImage: "list.clipboard.fill") {
+                    EmptyView()
+                }
+                Tab("Profil", systemImage: "person.fill") {
+                    EmptyView()
+                }
+            }
         }
     }
 }
