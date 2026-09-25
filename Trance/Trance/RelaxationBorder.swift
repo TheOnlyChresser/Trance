@@ -34,8 +34,11 @@ struct RelaxationBorder: View {
         }
         .task(id: bpm) {
             guard bpm > 0 else { return }
+            let interval = Duration.seconds(60 / bpm)
+            var next = ContinuousClock.now
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(60 / bpm))
+                next += interval
+                try? await Task.sleep(until: next)
                 beats += 1
             }
         }
@@ -51,10 +54,10 @@ private struct LevelBorder: View {
     @AnimatableIgnored var pulse: Double
 
     var body: some View {
+        let color = Color(hue: 0.08 + 0.42 * level, saturation: 0.65, brightness: 0.85)
         ConcentricRectangle()
-            .stroke(
-                Color(hue: 0.08 + 0.42 * level, saturation: 0.65, brightness: 0.85),
-                lineWidth: 1 + 12 * level + 6 * pulse)
+            .stroke(color, lineWidth: 1 + 12 * level + 6 * pulse)
+            .shadow(color: color, radius: 12)
     }
 }
 
