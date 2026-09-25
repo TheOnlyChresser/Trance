@@ -29,6 +29,15 @@ struct ContentView: View {
             }
             .navigationTitle("Hjem")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        NewSessionView()
+                    } label: {
+                        Label("Ny session", systemImage: "plus")
+                    }
+                }
+            }
         }
     }
 }

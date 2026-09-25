@@ -181,6 +181,9 @@
 			);
 			mainGroup = CA2951E33046D7BE00E243B1;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CABE999B3066954B007B7B71 /* XCRemoteSwiftPackageReference "figma-preview" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CA2951ED3046D7BE00E243B1 /* Products */;
 			projectDirPath = "";
@@ -599,6 +602,17 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CABE999B3066954B007B7B71 /* XCRemoteSwiftPackageReference "figma-preview" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/artemnovichkov/figma-preview.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
 	};
 	rootObject = CA2951E43046D7BE00E243B1 /* Project object */;
 	validationLevel = 1;
