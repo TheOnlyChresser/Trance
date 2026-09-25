@@ -13,7 +13,7 @@ struct ContentView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 16) {
                     Text("Sessioner")
-                        .font(.largeTitle)
+                        .font(.title)
                     ForEach(0..<40) { i in
                         HStack {
                             Text("Session \(i)")
@@ -27,7 +27,7 @@ struct ContentView: View {
                 }
                 .padding(.horizontal)
             }
-            .navigationTitle("Home")
+            .navigationTitle("Hjem")
             .navigationBarTitleDisplayMode(.large)
         }
     }
