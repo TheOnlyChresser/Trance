@@ -20,7 +20,9 @@ struct TranceApp: App {
                 Tab("Profil", systemImage: "person.fill") {
                     EmptyView()
                 }
-                
+                Tab("Søg", systemImage: "magnifyingglass", role: .prominent) {
+                    SearchView()
+                }
             }
             .onAppear { SensorAccess.start() }
             .onChange(of: scenePhase) { _, phase in
