@@ -17,12 +17,10 @@ struct TranceApp: App {
                 Tab("Hjem", systemImage: "house.fill") {
                     ContentView()
                 }
-                Tab("Sessioner", systemImage: "list.clipboard.fill") {
-                    EmptyView()
-                }
                 Tab("Profil", systemImage: "person.fill") {
                     EmptyView()
                 }
+                
             }
             .onAppear { SensorAccess.start() }
             .onChange(of: scenePhase) { _, phase in
