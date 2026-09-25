@@ -19,7 +19,7 @@ struct ContentView: View {
                             Text("Session \(i)")
                         }
                         .padding()
-                        .padding(.vertical, 32)
+                        .padding(.vertical, 16)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color(.secondarySystemBackground))
                         .cornerRadius(80)
