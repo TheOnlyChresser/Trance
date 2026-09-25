@@ -2,8 +2,7 @@
 
 namespace trance {
 enum class SensorUpdate { heartRate, face, hardware };
-// swift calls this notification after storing a new reading. No sensor data is
-// passed here, C++ reads a value copy from Swift using
-// Trance::copySensorSnapshot()
+// swift calls this notification after storing a new reading c++ reads a value
+// copy via Trance::copySensorSnapshot() from Trance-Swift.h.
 void sensorDataChanged(SensorUpdate update);
 } // namespace trance

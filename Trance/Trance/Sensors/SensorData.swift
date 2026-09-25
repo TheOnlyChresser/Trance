@@ -11,7 +11,7 @@ public nonisolated struct TranceMatrix4: Sendable {
     public var c2 = TranceVector4(), c3 = TranceVector4()
 }
 public nonisolated struct TranceHeartRate: Sendable {
-    public var available = false 
+    public var available = false
     public var bpm: Double = 0
     public var timestamp: Double = 0
 }
