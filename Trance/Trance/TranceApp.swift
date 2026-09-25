@@ -9,6 +9,8 @@ import SwiftUI
 
 @main
 struct TranceApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
             TabView {
@@ -21,6 +23,11 @@ struct TranceApp: App {
                 Tab("Profil", systemImage: "person.fill") {
                     EmptyView()
                 }
+            }
+            .onAppear { SensorAccess.start() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { SensorAccess.start() }
+                if phase == .background { SensorAccess.stop() }
             }
         }
     }
