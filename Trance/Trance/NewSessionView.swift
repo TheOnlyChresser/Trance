@@ -9,16 +9,31 @@
 import SwiftUI
 
 struct NewSessionView: View {
+    @State private var minutes = 10
+    @State private var isRunning = false
+
     var body: some View {
-            VStack(alignment: .center) {
-                VStack {
-                    Circle()
-                        .frame(width: 80, height: 80)
+        VStack(spacing: 24) {
+            Text("Hvor lang tid skal din session være?")
+                .font(.title2)
+                .multilineTextAlignment(.center)
+            Picker("Varighed", selection: $minutes) {
+                ForEach(1...12, id: \.self) { minutes in
+                    Text("\(minutes * 5) min")
                 }
-                .padding(.bottom, 160)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .pickerStyle(.wheel)
+            Button("Start") {
+                isRunning = true
+            }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
         }
+        .padding()
+        .fullScreenCover(isPresented: $isRunning) {
+            SessionView(duration: .seconds(minutes * 60 * 5))
+        }
+    }
 }
 
 #Preview {
