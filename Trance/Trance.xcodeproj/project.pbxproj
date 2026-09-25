@@ -251,6 +251,7 @@
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				SWIFT_OBJC_INTEROP_MODE = objcxx;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -313,6 +314,7 @@
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				SWIFT_OBJC_INTEROP_MODE = objcxx;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -395,6 +397,12 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_OBJC_BRIDGING_HEADER = "Trance/Sensors/SensorData.hpp";
+				SWIFT_OBJC_INTERFACE_HEADER_NAME = "Trance-Swift.h";
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = Sensors.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = Sensors.entitlements;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Trance reads eye direction, eyelid closure and head movement.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Trance reads your pulse for the current session.";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -439,6 +447,12 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_OBJC_BRIDGING_HEADER = "Trance/Sensors/SensorData.hpp";
+				SWIFT_OBJC_INTERFACE_HEADER_NAME = "Trance-Swift.h";
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = Sensors.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = Sensors.entitlements;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Trance reads eye direction, eyelid closure and head movement.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Trance reads your pulse for the current session.";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
