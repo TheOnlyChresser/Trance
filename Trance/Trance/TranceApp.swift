@@ -24,6 +24,8 @@ struct TranceApp: App {
                     SearchView()
                 }
             }
+            // farven på den valgte fane, og på knapper i resten af appen
+            .tint(.pink)
             .onAppear { SensorAccess.start() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { SensorAccess.start() }

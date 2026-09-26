@@ -35,6 +35,8 @@ struct ContentView: View {
                     Button("Ny session", systemImage: "plus") {
                         isChoosingDuration = true
                     }
+                    // sort i stedet for appens pink farve
+                    .tint(.primary)
                 }
                 .matchedTransitionSource(id: "ny session", in: namespace)
             }
