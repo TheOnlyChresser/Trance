@@ -28,7 +28,10 @@ struct NewSessionView: View {
                 isRunning = true
             }
             .buttonStyle(.glassProminent)
-            .controlSize(.large)
+            .controlSize(.extraLarge)
+            .font(.headline)
+            // fylder hele bredden
+            .buttonSizing(.flexible)
         }
         .padding()
         .fullScreenCover(isPresented: $isRunning) {

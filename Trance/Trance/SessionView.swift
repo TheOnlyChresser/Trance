@@ -52,7 +52,11 @@ struct SessionView: View {
                     .overlay(alignment: .bottom) {
                         Button("Færdig", action: onFinish)
                             .buttonStyle(.glassProminent)
-                            .controlSize(.large)
+                            .controlSize(.extraLarge)
+                            .font(.headline)
+                            // fylder hele bredden
+                            .buttonSizing(.flexible)
+                            .padding(.horizontal)
                     }
             } else {
                 RelaxationBorder(score: relaxation, bpm: bpm)
