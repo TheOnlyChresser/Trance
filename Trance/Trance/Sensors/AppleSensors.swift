@@ -17,6 +17,7 @@ import Foundation
         private var lastPulse = TranceHeartRate()
         private var faceAvailable = false
         private var hardware = TranceHardware()
+        private var watchPulse = false
 
         func start() {
             running = true
@@ -104,16 +105,43 @@ import Foundation
                     self.pendingQueries.removeValue(forKey: request)
                     guard self.running, request == self.requestNumber else { return }
                     if let error { print("Trance HealthKit: \(error)") }
-                    if copy.available != self.lastPulse.available || copy.bpm != self.lastPulse.bpm
-                        || copy.timestamp != self.lastPulse.timestamp
-                    {
-                        self.lastPulse = copy
-                        updateHeartRate(copy)
-                    }
+                    self.publishPulse(copy)
                 }
             }
             pendingQueries[request] = query
             healthStore?.execute(query)
+        }
+
+        // pulsen kommer både fra HealthKit og direkte fra uret, så kun nyere målinger bruges
+        private func publishPulse(_ value: TranceHeartRate) {
+            guard value.timestamp > lastPulse.timestamp else { return }
+            lastPulse = value
+            updateHeartRate(value)
+        }
+
+        func startWatchPulse() {
+            watchPulse = true
+            let configuration = HKWorkoutConfiguration()
+            configuration.activityType = .mindAndBody
+            configuration.locationType = .indoor
+            healthStore?.startWatchApp(with: configuration) { _, error in
+                if let error { print("Trance Watch workout: \(error)") }
+            }
+        }
+
+        // uret får svaret ved sin næste måling og stopper så selv sin workout
+        func stopWatchPulse() {
+            watchPulse = false
+        }
+
+        private func receiveWatchPulse(bpm: Double, time: Double) -> Bool {
+            guard running, watchPulse else { return false }
+            if bpm > 0 {
+                // urets ur kan gå en smule foran, og scoren tæller ikke målinger fra fremtiden
+                let now = Date().timeIntervalSince1970
+                publishPulse(TranceHeartRate(available: true, bpm: bpm, timestamp: min(time, now)))
+            }
+            return true
         }
 
         func stop() {
@@ -208,6 +236,16 @@ import Foundation
         nonisolated func sessionDidBecomeInactive(_ session: WCSession) {
             publishWatchPairing(false)
         }
+        nonisolated func session(
+            _ session: WCSession, didReceiveMessage message: [String: Any],
+            replyHandler: @escaping ([String: Any]) -> Void
+        ) {
+            let bpm = message["bpm"] as? Double ?? 0
+            let time = message["tid"] as? Double ?? 0
+            DispatchQueue.main.async { [weak self] in
+                replyHandler(["fortsæt": self?.receiveWatchPulse(bpm: bpm, time: time) ?? false])
+            }
+        }
         nonisolated func sessionDidDeactivate(_ session: WCSession) {
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.running else { return }
@@ -221,6 +259,8 @@ import Foundation
 enum SensorAccess {
     #if os(iOS) && !targetEnvironment(macCatalyst)
         private static var reader: AppleSensorReader?
+        // overlever at appen er i baggrunden midt i en session
+        private static var watchPulse = false
     #endif
     static func start() {
         #if os(iOS) && !targetEnvironment(macCatalyst)
@@ -228,6 +268,7 @@ enum SensorAccess {
             let source = AppleSensorReader()
             reader = source
             source.start()
+            if watchPulse { source.startWatchPulse() }
         #else
             updateHardware(TranceHardware())
             updateHeartRate(TranceHeartRate())
@@ -238,6 +279,18 @@ enum SensorAccess {
         #if os(iOS) && !targetEnvironment(macCatalyst)
             reader?.stop()
             reader = nil
+        #endif
+    }
+    static func startWatchPulse() {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+            watchPulse = true
+            reader?.startWatchPulse()
+        #endif
+    }
+    static func stopWatchPulse() {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+            watchPulse = false
+            reader?.stopWatchPulse()
         #endif
     }
 }

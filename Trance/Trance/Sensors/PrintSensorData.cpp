@@ -1,54 +1,66 @@
 #include "SensorData.hpp"
-#include "Trance-Swift.h"
+
+#include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <mutex>
+#include <optional>
 
-#include "../../core/lib/øjensporer.hpp"
+#include "../../core/lib/SessionScores.hpp"
 
 namespace trance {
-void sensorDataChanged(SensorUpdate update) {
-  const auto data = Trance::copySensorSnapshot();
-  std::cout << std::setprecision(15);
-  const auto vector = [](const auto &v) {
-    std::cout << '(' << v.getX() << ", " << v.getY() << ", " << v.getZ() << ')';
-  };
-  if (update == SensorUpdate::heartRate) {
-    const auto pulse = data.getHeartRate();
-    if (!pulse.getAvailable())
-      std::cout << "Pulse unavailable";
-    else
-      std::cout << "Pulse: " << pulse.getBpm()
-                << " BPM, timestamp: " << pulse.getTimestamp();
-  } else if (update == SensorUpdate::face) {
-    øjensporer tracker;
-    tracker.fokuspoint();
-    const auto face = data.getFace();
-    if (!face.getAvailable())
-      std::cout << "Face tracking unavailable";
-    else {
-      std::cout << "Face timestamp: " << face.getTimestamp()
-                << " left origin/direction: ";
-      vector(face.getLeftEyeOrigin());
-      vector(face.getLeftEyeDirection());
-      std::cout << " right origin/direction: ";
-      vector(face.getRightEyeOrigin());
-      vector(face.getRightEyeDirection());
-      std::cout << " eyelid closure: " << face.getLeftEyeClosure() << ", "
-                << face.getRightEyeClosure();
-      const auto head = face.getHeadTransform();
-      std::cout << " head matrix:";
-      for (const auto &c :
-           {head.getC0(), head.getC1(), head.getC2(), head.getC3()})
-        std::cout << ' ' << c.getX() << ' ' << c.getY() << ' ' << c.getZ()
-                  << ' ' << c.getW();
-    }
-  } else {
-    const auto h = data.getHardware();
-    std::cout << "Hardware: HealthKit=" << h.getHealthKit()
-              << " face tracking=" << h.getFaceTracking()
-              << " TrueDepth=" << h.getTrueDepthCamera()
-              << " Watch paired=" << h.getWatchPaired();
+namespace {
+
+constexpr auto scorePrintInterval = std::chrono::seconds(6);
+
+std::mutex scorePrintMutex;
+std::chrono::steady_clock::time_point lastScorePrint;
+std::optional<double> previousRelaxation;
+std::optional<double> previousFocus;
+
+void printScore(const char *label, ScoreValue score,
+                std::optional<double> &previous) {
+  std::cout << label << ": ";
+
+  if (!score.available) {
+    std::cout << "unavailable";
+    previous.reset();
+    return;
   }
+
+  const double percent = score.value * 100;
+  std::cout << std::fixed << std::setprecision(1) << percent << '%';
+
+  if (previous) {
+    const double change = percent - *previous * 100;
+    std::cout << " (" << std::showpos << change << std::noshowpos << " pp)";
+  }
+
+  previous = score.value;
+}
+
+} // namespace
+
+void sensorDataChanged(SensorUpdate) {
+  const auto currentTime = std::chrono::steady_clock::now();
+  const std::lock_guard lock(scorePrintMutex);
+
+  if (lastScorePrint.time_since_epoch().count() != 0 &&
+      currentTime - lastScorePrint < scorePrintInterval)
+    return;
+
+  lastScorePrint = currentTime;
+
+  const double now =
+      std::chrono::duration<double>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count();
+  const auto scores = copyScores(now);
+
+  std::cout << "=== SCORE UPDATE === ";
+  printScore("Relaxation", scores.afslapningsscore, previousRelaxation);
+  std::cout << " | ";
+  printScore("Focus", scores.fokusscore, previousFocus);
   std::cout << std::endl;
 }
 } // namespace trance

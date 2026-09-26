@@ -11,18 +11,24 @@ struct SessionView: View {
     let duration: Duration
     let onFinish: () -> Void
 
-    // hardcodet indtil scoren kommer fra sensorerne
-    private let relaxation = 0.7
+    // nil indtil scoren kan regnes ud. hele TranceSessionScores i @State crashede appen på iOS 27.2,
+    // når sessionen blev vist, så der gemmes kun små værdier
+    @State private var afslapningsscore: Double?
+    @State private var fokusscore: Double?
+
+    private var afslapning: Double { afslapningsscore ?? 0.7 }
+
+    private var fokus: Double { fokusscore ?? 0.7 }
+
     // bruges indtil HealthKit har en pulsmåling
     @State private var bpm = 60.0
-    @State private var relaxationSamples: [Double] = []
-    @State private var result: Double?
-
+    @State private var afslapningSamples: [Double] = []
+    @State private var resultat: Double?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
-            if let result {
+            if let resultat {
                 // Efter sessionen: en let farvegradient fra skærmens kant ind mod teksten.
                 // Midten har baggrundens farve og ligger samme sted som teksten.
                 MeshGradient(
@@ -44,7 +50,7 @@ struct SessionView: View {
                 // starter forstørret, så farverne glider ind fra kanten mod teksten
                 .transition(.scale(1.4, anchor: UnitPoint(x: 0.5, y: 0.44)).combined(with: .opacity))
 
-                SessionSummaryView(relaxation: result)
+                SessionSummaryView(relaxation: resultat)
                     .padding(.horizontal, 32)
                     // samme sted som prikken
                     .padding(.bottom, 128)
@@ -59,7 +65,7 @@ struct SessionView: View {
                             .padding(.horizontal)
                     }
             } else {
-                RelaxationBorder(score: relaxation, bpm: bpm)
+                RelaxationBorder(score: afslapning, bpm: bpm)
                     .ignoresSafeArea()
                     // kanten trækker sig ind og bliver sløret, mens gradienten kommer frem
                     .transition(.blurReplace(.downUp))
@@ -77,17 +83,37 @@ struct SessionView: View {
                     // når tiden er gået, vis resume
                     .task {
                         try? await Task.sleep(for: duration)
-                        relaxationSamples.append(relaxation)
+                        afslapningSamples.append(afslapning)
                         withAnimation(reduceMotion ? nil : .spring(duration: 1.2, bounce: 0)) {
-                            result = relaxationSamples.reduce(0, +) / Double(relaxationSamples.count)
+                            resultat = afslapningSamples.reduce(0, +) / Double(afslapningSamples.count)
                         }
                     }
-                    // pulsen fra HealthKit skifter sjældent, så det er nok at kigge hvert 5. sekund
+                    // scoren regnes ud i c++; her startes den, og pulsen og scoren hentes hvert 5. sekund
                     .task {
+                        let start = Date().timeIntervalSince1970
+                        var afslapningKalibreret = false
+                        clearScoreCalibration()
+                        // prikken sidder lige under kameraet, så blikket tæller som fokus inden for 20° af kameraet
+                        configureFocusScore(target: TranceVector3(), toleranceDegrees: 20)
+                        startScoreSession()
+                        // uret måler kun pulsen ofte nok til scoren, mens det kører en workout
+                        SensorAccess.startWatchPulse()
+                        defer {
+                            stopScoreSession()
+                            SensorAccess.stopWatchPulse()
+                        }
                         while !Task.isCancelled {
                             let heartRate = copySensorSnapshot().heartRate
                             if heartRate.available, heartRate.bpm > 0 { bpm = heartRate.bpm }
-                            relaxationSamples.append(relaxation)
+                            // den første måling fra sessionen er udgangspunktet, og 10 % lavere puls er helt afslappet
+                            if !afslapningKalibreret, heartRate.available, heartRate.timestamp >= start {
+                                afslapningKalibreret = configureRelaxationScore(
+                                    startBpm: heartRate.bpm, relaxedBpm: heartRate.bpm * 0.9)
+                            }
+                            let scores = copySessionScores()
+                            afslapningsscore = scores.afslapningsscore.available ? scores.afslapningsscore.value : nil
+                            fokusscore = scores.fokusscore.available ? scores.fokusscore.value : nil
+                            afslapningSamples.append(afslapning)
                             try? await Task.sleep(for: .seconds(5))
                         }
                     }
@@ -95,10 +121,10 @@ struct SessionView: View {
         }
         .statusBarHidden()
         // haptic feedback når tiden er gået
-        .sensoryFeedback(.impact(flexibility: .soft), trigger: result)
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: resultat)
     }
 }
 
 #Preview {
-    SessionView(duration: .seconds(60)) {}
+    SessionView(duration: .seconds(2)) {}
 }

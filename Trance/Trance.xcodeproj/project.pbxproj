@@ -6,7 +6,18 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0D32CEDAB63B4574AC790206 /* TranceWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 2EBDACE0750B4E6CB4D10559 /* TranceWatch.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		A9DA64DF009A425E80260AD6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CA2951E43046D7BE00E243B1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 99B0DDB54B084A4E87A3CC18;
+			remoteInfo = TranceWatch;
+		};
 		CA2951FC3046D7C000E243B1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = CA2951E43046D7BE00E243B1 /* Project object */;
@@ -23,7 +34,20 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		A9AE269F8F91433098DCC798 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolder = Product;
+			files = (
+				0D32CEDAB63B4574AC790206 /* TranceWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		2EBDACE0750B4E6CB4D10559 /* TranceWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TranceWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA2951EC3046D7BE00E243B1 /* Trance.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Trance.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA2951FB3046D7C000E243B1 /* TranceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TranceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA2952053046D7C000E243B1 /* TranceUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TranceUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -33,6 +57,11 @@
 		AC7CB1E85870474CA2F34B59 /* core */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = core;
+			sourceTree = "<group>";
+		};
+		B3FE0FD2B63A430B9355CB22 /* TranceWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TranceWatch;
 			sourceTree = "<group>";
 		};
 		CA2951EE3046D7BE00E243B1 /* Trance */ = {
@@ -53,6 +82,11 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		878B66621DBA4CE790D32241 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 		CA2951E93046D7BE00E243B1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
@@ -76,6 +110,7 @@
 			children = (
 				CA2951EE3046D7BE00E243B1 /* Trance */,
 				AC7CB1E85870474CA2F34B59 /* core */,
+				B3FE0FD2B63A430B9355CB22 /* TranceWatch */,
 				CA2951FE3046D7C000E243B1 /* TranceTests */,
 				CA2952083046D7C000E243B1 /* TranceUITests */,
 				CA2951ED3046D7BE00E243B1 /* Products */,
@@ -88,6 +123,7 @@
 				CA2951EC3046D7BE00E243B1 /* Trance.app */,
 				CA2951FB3046D7C000E243B1 /* TranceTests.xctest */,
 				CA2952053046D7C000E243B1 /* TranceUITests.xctest */,
+				2EBDACE0750B4E6CB4D10559 /* TranceWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,6 +131,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		99B0DDB54B084A4E87A3CC18 /* TranceWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EA0F142D64C045E7B09022E3 /* Build configuration list for PBXNativeTarget "TranceWatch" */;
+			buildPhases = (
+				1D621C3BF6EE4A98915C3F1D /* Sources */,
+				878B66621DBA4CE790D32241 /* Frameworks */,
+				DE000BE29AD84CFFB59FE213 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				B3FE0FD2B63A430B9355CB22 /* TranceWatch */,
+			);
+			name = TranceWatch;
+			productName = TranceWatch;
+			productReference = 2EBDACE0750B4E6CB4D10559 /* TranceWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
 		CA2951EB3046D7BE00E243B1 /* Trance */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = CA29520D3046D7C000E243B1 /* Build configuration list for PBXNativeTarget "Trance" */;
@@ -102,12 +156,16 @@
 				CA2951E83046D7BE00E243B1 /* Sources */,
 				CA2951E93046D7BE00E243B1 /* Frameworks */,
 				CA2951EA3046D7BE00E243B1 /* Resources */,
+				A9AE269F8F91433098DCC798 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
+			dependencies = (
+				4E2BAA4D3F1C4F25B626B5B2 /* PBXTargetDependency */,
+			);
 			fileSystemSynchronizedGroups = (
-				CA2951EE3046D7BE00E243B1 /* Trance */,
 				AC7CB1E85870474CA2F34B59 /* core */,
+				CA2951EE3046D7BE00E243B1 /* Trance */,
 			);
 			name = Trance;
 			productName = Trance;
@@ -166,6 +224,9 @@
 				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
+					99B0DDB54B084A4E87A3CC18 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					CA2951EB3046D7BE00E243B1 = {
 						CreatedOnToolsVersion = 27.0;
 					};
@@ -199,6 +260,7 @@
 				CA2951EB3046D7BE00E243B1 /* Trance */,
 				CA2951FA3046D7C000E243B1 /* TranceTests */,
 				CA2952043046D7C000E243B1 /* TranceUITests */,
+				99B0DDB54B084A4E87A3CC18 /* TranceWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -219,9 +281,19 @@
 			files = (
 			);
 		};
+		DE000BE29AD84CFFB59FE213 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1D621C3BF6EE4A98915C3F1D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 		CA2951E83046D7BE00E243B1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
@@ -240,6 +312,12 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		4E2BAA4D3F1C4F25B626B5B2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = 99B0DDB54B084A4E87A3CC18 /* TranceWatch */;
+			targetProxy = A9DA64DF009A425E80260AD6 /* PBXContainerItemProxy */;
+		};
 		CA2951FD3046D7C000E243B1 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = CA2951EB3046D7BE00E243B1 /* Trance */;
@@ -253,6 +331,76 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		7829661B464441B1B7E5C42B /* Debug configuration for PBXNativeTarget "TranceWatch" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TranceWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F2F76QVQYS;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "TranceWatch-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Trance;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Trance reads your pulse during a session and sends it to your iPhone.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Trance runs a workout during a session so Apple Watch measures your pulse continuously.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.Chresten.Trance;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Chresten.Trance.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		9AEFF02D5EB14BB68DB9CEFF /* Release configuration for PBXNativeTarget "TranceWatch" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TranceWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F2F76QVQYS;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "TranceWatch-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Trance;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Trance reads your pulse during a session and sends it to your iPhone.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Trance runs a workout during a session so Apple Watch measures your pulse continuously.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.Chresten.Trance;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Chresten.Trance.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
 		CA29520B3046D7C000E243B1 /* Debug configuration for PBXProject "Trance" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -605,6 +753,14 @@
 			buildConfigurations = (
 				CA2952143046D7C000E243B1 /* Debug configuration for PBXNativeTarget "TranceUITests" */,
 				CA2952153046D7C000E243B1 /* Release configuration for PBXNativeTarget "TranceUITests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		EA0F142D64C045E7B09022E3 /* Build configuration list for PBXNativeTarget "TranceWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7829661B464441B1B7E5C42B /* Debug configuration for PBXNativeTarget "TranceWatch" */,
+				9AEFF02D5EB14BB68DB9CEFF /* Release configuration for PBXNativeTarget "TranceWatch" */,
 			);
 			defaultConfigurationName = Release;
 		};
