@@ -7,47 +7,18 @@
 
 import SwiftUI
 
+/// Teksten der står inde i kanten, når sessionen er slut.
 struct SessionSummaryView: View {
     let relaxation: Double
-    let onDone: () -> Void
 
     var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
-
-            // ringen med procenten i midten
-            ZStack {
-                // grå baggrundsring
-                Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 14)
-
-                // farvet bue
-                Circle()
-                    .trim(from: 0, to: relaxation)
-                    .stroke(Color.relaxation(relaxation), style: StrokeStyle(lineWidth: 14, lineCap: .round))
-                    // så buen starter øverst i stedet for højre
-                    .rotationEffect(.degrees(-90))
-
-                Text("\(Int((relaxation * 100).rounded())) %")
-                    .font(.system(size: 44, weight: .semibold, design: .rounded))
-            }
-            .frame(width: 180, height: 180)
-
-            VStack(spacing: 8) {
-                Text(title)
-                    .font(.title.bold())
-                Text(message)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            Spacer()
-
-            Button("Færdig", action: onDone)
-                .buttonStyle(.glassProminent)
-                .controlSize(.large)
+        VStack(spacing: 8) {
+            Text(title)
+                .font(.title.bold())
+            Text(message)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
-        .padding()
     }
 
     private var title: String {
@@ -66,5 +37,5 @@ struct SessionSummaryView: View {
 }
 
 #Preview {
-    SessionSummaryView(relaxation: 0.7) {}
+    SessionSummaryView(relaxation: 0.7)
 }
