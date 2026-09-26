@@ -53,10 +53,12 @@ public nonisolated func receiveFokusPunkt(_ x: Float, _ y: Float, _ z: Float) {
 
 @MainActor func updateHeartRate(_ value: TranceHeartRate) {
     sensorStore.update { $0.heartRate = value }
+    updateScoreHeartRate(value)
     trance.sensorDataChanged(.heartRate)
 }
 @MainActor func updateFace(_ value: TranceFaceData) {
     sensorStore.update { $0.face = value }
+    updateScoreFace(value)
     trance.sensorDataChanged(.face)
 }
 @MainActor func updateHardware(_ value: TranceHardware) {
