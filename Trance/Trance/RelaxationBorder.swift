@@ -22,10 +22,10 @@ struct RelaxationBorder: View {
                 .opacity(reduceMotion ? 0.7 + 0.3 * pulse : 1)
         } keyframes: { _ in
             // normalt hjerteslag; et kraftigt slag og et mindre lige efter, så hvile til næste slag.
-            LinearKeyframe(1, duration: 0.08, timingCurve: easeOut)
-            LinearKeyframe(0.3, duration: 0.14, timingCurve: easeOut)
-            LinearKeyframe(0.6, duration: 0.08, timingCurve: easeOut)
-            LinearKeyframe(0, duration: 0.3, timingCurve: easeOut)
+            SpringKeyframe(1, duration: 0.08, spring: Spring(duration: 0.12))
+            SpringKeyframe(0.3, duration: 0.14, spring: Spring(duration: 0.2))
+            SpringKeyframe(0.6, duration: 0.08, spring: Spring(duration: 0.12))
+            SpringKeyframe(0, spring: Spring(duration: 0.4))
         }
         .onChange(of: score, initial: true) {
             withAnimation(reduceMotion ? nil : .spring(duration: 1.2, bounce: 0)) {
@@ -45,19 +45,23 @@ struct RelaxationBorder: View {
     }
 }
 
-private let easeOut = UnitCurve.bezier(
-    startControlPoint: UnitPoint(x: 0.23, y: 1), endControlPoint: UnitPoint(x: 0.32, y: 1))
-
 @Animatable
 private struct LevelBorder: View {
     var level: Double
     @AnimatableIgnored var pulse: Double
 
     var body: some View {
-        let color = Color(hue: 0.08 + 0.42 * level, saturation: 0.65, brightness: 0.85)
+        let color = Color.relaxation(level)
         ConcentricRectangle()
             .stroke(color, lineWidth: 1 + 12 * level + 6 * pulse)
             .shadow(color: color, radius: 12)
+    }
+}
+
+extension Color {
+    /// går rundt om farver, så de blands
+    static func relaxation(_ level: Double) -> Color {
+        Color(hue: 0.08 + 0.42 * level, saturation: 0.65, brightness: 0.85)
     }
 }
 

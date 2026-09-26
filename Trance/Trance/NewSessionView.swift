@@ -11,6 +11,7 @@ import SwiftUI
 struct NewSessionView: View {
     @State private var minutes = 10
     @State private var isRunning = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(spacing: 24) {
@@ -18,8 +19,8 @@ struct NewSessionView: View {
                 .font(.title2)
                 .multilineTextAlignment(.center)
             Picker("Varighed", selection: $minutes) {
-                ForEach(1...12, id: \.self) { minutes in
-                    Text("\(minutes * 5) min")
+                ForEach([1, 2, 5, 10, 30, 60], id: \.self) { minutes in
+                    Text("\(minutes) min")
                 }
             }
             .pickerStyle(.wheel)
@@ -31,13 +32,12 @@ struct NewSessionView: View {
         }
         .padding()
         .fullScreenCover(isPresented: $isRunning) {
-            SessionView(duration: .seconds(minutes * 60 * 5))
+            // Når arket lukkes, forsvinder sessionen oven på det med, så man glider direkte ned på Hjem.
+            SessionView(duration: .seconds(minutes * 60)) { dismiss() }
         }
     }
 }
 
 #Preview {
-    NavigationStack {
-        NewSessionView()
-    }
+    NewSessionView()
 }

@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var isChoosingDuration = false
+    @Namespace private var namespace
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -31,12 +34,17 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        NewSessionView()
-                    } label: {
-                        Label("Ny session", systemImage: "plus")
+                    Button("Ny session", systemImage: "plus") {
+                        isChoosingDuration = true
                     }
                 }
+                .matchedTransitionSource(id: "ny session", in: namespace)
+            }
+            .sheet(isPresented: $isChoosingDuration) {
+                NewSessionView()
+                    .presentationDetents([.medium])
+                    // arket vokser ud af plus-knappen
+                    .navigationTransition(.zoom(sourceID: "ny session", in: namespace))
             }
         }
     }
