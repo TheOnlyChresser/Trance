@@ -1,5 +1,5 @@
 #include "Trance-Swift.h"
-#include <string>
+#include <cmath>
 #include <vector>
 
 class øjensporer {
@@ -7,5 +7,5 @@ public:
   øjensporer();
   ~øjensporer();
 
-  std::string fokuspoint();
+  void fokuspoint();
 };

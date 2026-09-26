@@ -3,6 +3,8 @@
 #include <iomanip>
 #include <iostream>
 
+#include "../../core/lib/øjensporer.hpp"
+
 namespace trance {
 void sensorDataChanged(SensorUpdate update) {
   const auto data = Trance::copySensorSnapshot();
@@ -18,6 +20,8 @@ void sensorDataChanged(SensorUpdate update) {
       std::cout << "Pulse: " << pulse.getBpm()
                 << " BPM, timestamp: " << pulse.getTimestamp();
   } else if (update == SensorUpdate::face) {
+    øjensporer tracker;
+    tracker.fokuspoint();
     const auto face = data.getFace();
     if (!face.getAvailable())
       std::cout << "Face tracking unavailable";
