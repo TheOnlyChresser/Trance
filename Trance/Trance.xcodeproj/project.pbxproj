@@ -30,6 +30,11 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		AC7CB1E85870474CA2F34B59 /* core */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = core;
+			sourceTree = "<group>";
+		};
 		CA2951EE3046D7BE00E243B1 /* Trance */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Trance;
@@ -70,6 +75,7 @@
 			isa = PBXGroup;
 			children = (
 				CA2951EE3046D7BE00E243B1 /* Trance */,
+				AC7CB1E85870474CA2F34B59 /* core */,
 				CA2951FE3046D7C000E243B1 /* TranceTests */,
 				CA2952083046D7C000E243B1 /* TranceUITests */,
 				CA2951ED3046D7BE00E243B1 /* Products */,
@@ -101,6 +107,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CA2951EE3046D7BE00E243B1 /* Trance */,
+				AC7CB1E85870474CA2F34B59 /* core */,
 			);
 			name = Trance;
 			productName = Trance;
