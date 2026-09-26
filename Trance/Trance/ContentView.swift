@@ -11,21 +11,19 @@ struct ContentView: View {
     @State private var isChoosingDuration = false
     @Namespace private var namespace
 
+    private let sessions = Session.mockData
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 16) {
                     Text("Sessioner")
                         .font(.title)
-                    ForEach(0..<40) { i in
-                        HStack {
-                            Text("Session \(i)")
+                    // to kolonner
+                    LazyVGrid(columns: [GridItem(spacing: 12), GridItem(spacing: 12)], spacing: 12) {
+                        ForEach(sessions) { session in
+                            SessionCard(session: session)
                         }
-                        .padding()
-                        .padding(.vertical, 16)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.secondarySystemBackground))
-                        .cornerRadius(80)
                     }
                 }
                 .padding(.horizontal)
