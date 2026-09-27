@@ -62,6 +62,7 @@ struct ContentView: View {
             .buttonSizing(.flexible)
         }
         .padding()
+        .background { MeshBackground() }
         .fullScreenCover(isPresented: $isRunning) {
             SessionView(duration: .seconds(minutes * 60)) { isRunning = false }
         }

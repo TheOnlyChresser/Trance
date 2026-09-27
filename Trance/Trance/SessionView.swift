@@ -29,26 +29,10 @@ struct SessionView: View {
     var body: some View {
         ZStack {
             if let resultat {
-                // Efter sessionen: en let farvegradient fra skærmens kant ind mod teksten.
-                // Midten har baggrundens farve og ligger samme sted som teksten.
-                MeshGradient(
-                    width: 3,
-                    height: 3,
-                    points: [
-                        [0, 0], [0.5, 0], [1, 0],
-                        [0, 0.44], [0.5, 0.44], [1, 0.44],
-                        [0, 1], [0.5, 1], [1, 1],
-                    ],
-                    colors: [
-                        .orange, .yellow, .orange,
-                        .pink, Color(.systemBackground), .mint,
-                        .teal, .cyan, .blue,
-                    ]
-                )
-                .opacity(0.35)
-                .ignoresSafeArea()
-                // starter forstørret, så farverne glider ind fra kanten mod teksten
-                .transition(.scale(1.4, anchor: UnitPoint(x: 0.5, y: 0.44)).combined(with: .opacity))
+                // samme gradient som på Hjem, så man lander blødt tilbage, når man trykker Færdig
+                MeshBackground()
+                    // starter forstørret, så farverne glider ind fra kanten mod teksten
+                    .transition(.scale(1.4, anchor: UnitPoint(x: 0.5, y: 0.44)).combined(with: .opacity))
 
                 SessionSummaryView(relaxation: resultat)
                     .padding(.horizontal, 32)
