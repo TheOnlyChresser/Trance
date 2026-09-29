@@ -16,7 +16,8 @@ struct Observation {
 };
 
 struct Window {
-  double duration, maxAge;
+  // grace er hvor længe scoren overlever et hul i målingerne, fx når man blinker
+  double duration, maxAge, grace;
   bool calibrated = false;
   std::deque<Observation> samples{};
 
@@ -30,7 +31,7 @@ struct State {
   bool active = false;
   double started = 0, startBpm = 0, relaxedBpm = 0, minCosine = 1;
   ScoreVector3 target;
-  Window heart{30, 15}, gaze{10, 0.25};
+  Window heart{30, 15, 0}, gaze{10, 0.25, 1};
 };
 
 State state;
@@ -79,7 +80,7 @@ ScoreValue average(Window &window, double now) {
   if (samples.empty() || samples.back().time > now)
     return result;
 
-  double total = 0, duration = 0;
+  double total = 0, duration = 0, lastEnd = -INFINITY;
 
   for (std::size_t i = 0; i < samples.size(); ++i) {
     const auto &sample = samples[i];
@@ -94,11 +95,14 @@ ScoreValue average(Window &window, double now) {
 
     total += sample.value * dt;
     duration += dt;
+    lastEnd = end;
   }
 
   result.coverage = std::clamp(duration / window.duration, 0.0, 1.0);
 
-  if (samples.back().valid && now - samples.back().time < window.maxAge &&
+  // et blink må ikke gøre scoren utilgængelig, men den forsvinder, hvis
+  // målingerne stopper i længere tid end grace
+  if (now - lastEnd <= window.grace &&
       duration + 1e-8 >= window.duration / 2) {
     result.value = total / duration;
     result.available = true;
