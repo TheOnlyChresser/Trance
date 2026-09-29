@@ -60,7 +60,7 @@ struct SessionView: View {
                     .phaseAnimator([false, true]) { dot, indaending in
                         dot.scaleEffect(indaending ? 2.5 : 1)
                     } animation: { indaending in
-                        .easeInOut(duration: indånding ? 4 : 6)
+                        .easeInOut(duration: indaending ? 4 : 6)
                     }
                     .padding(.bottom, 128)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
