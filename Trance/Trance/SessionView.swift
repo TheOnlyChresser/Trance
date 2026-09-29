@@ -56,6 +56,12 @@ struct SessionView: View {
 
                 Circle()
                     .frame(width: 16, height: 16)
+                    // prikken vokser i 4 sekunder, mens man ånder ind, og krymper i 6 sekunder, mens man ånder ud
+                    .phaseAnimator([false, true]) { dot, indaending in
+                        dot.scaleEffect(indaending ? 2.5 : 1)
+                    } animation: { indaending in
+                        .easeInOut(duration: indånding ? 4 : 6)
+                    }
                     .padding(.bottom, 128)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     // prikken forsvinder hurtigt, så den ikke ligger oven på teksten der kommer frem
