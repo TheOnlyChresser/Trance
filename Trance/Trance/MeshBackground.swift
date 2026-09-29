@@ -23,7 +23,7 @@ struct MeshBackground: View {
                 .teal, .cyan, .blue,
             ]
         )
-        .opacity(0.35)
+        .opacity(0.1)
         .ignoresSafeArea()
     }
 }
