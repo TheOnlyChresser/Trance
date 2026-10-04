@@ -22,7 +22,9 @@ public nonisolated struct TranceFaceData: Sendable {
     public var leftEyeDirection = TranceVector3(), rightEyeDirection = TranceVector3()
     public var leftEyeClosure: Float = 0, rightEyeClosure: Float = 0
     public var headTransform = TranceMatrix4()
+    public var leftEyeTransform = TranceMatrix4(), rightEyeTransform = TranceMatrix4()
     public var focusPoint = TranceVector3()
+    public var focusPointAvailable = false
 }
 public nonisolated struct TranceHardware: Sendable {
     public var healthKit = false, faceTracking = false
@@ -56,11 +58,19 @@ public nonisolated func receiveFokusPunkt(_ x: Float, _ y: Float, _ z: Float) {
     updateScoreHeartRate(value)
     trance.sensorDataChanged(.heartRate)
 }
+
 @MainActor func updateFace(_ value: TranceFaceData) {
-    sensorStore.update { $0.face = value }
-    updateScoreFace(value)
+    updateScreenTracking(value)
+    let gaze = copyScreenGaze()
+
+    var face = value
+    face.focusPointAvailable = gaze.combined.available && gaze.combined.onScreen
+    face.focusPoint = face.focusPointAvailable ? gaze.combined.position : TranceVector3()
+
+    sensorStore.update { $0.face = face }
     trance.sensorDataChanged(.face)
 }
+
 @MainActor func updateHardware(_ value: TranceHardware) {
     sensorStore.update { $0.hardware = value }
     trance.sensorDataChanged(.hardware)

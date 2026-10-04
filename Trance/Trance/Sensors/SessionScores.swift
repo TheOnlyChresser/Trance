@@ -20,11 +20,8 @@ public nonisolated func configureRelaxationScore(
 }
 
 @discardableResult
-public nonisolated func configureFocusScore(
-    target: TranceVector3,
-    toleranceDegrees: Double
-) -> Bool {
-    trance.setFocusTarget(scoreVector(target), toleranceDegrees * .pi / 180)
+public nonisolated func configureFocusScore(x: Double, y: Double, radius: Double) -> Bool {
+    trance.setFocusTarget(x, y, radius)
 }
 
 public nonisolated func clearScoreCalibration() {
@@ -57,16 +54,6 @@ public nonisolated func copySessionScores() -> TranceSessionScores {
     )
 }
 
-private nonisolated func scoreVector(_ value: TranceVector3) -> trance.ScoreVector3 {
-    var result = trance.ScoreVector3()
-
-    result.x = Double(value.x)
-    result.y = Double(value.y)
-    result.z = Double(value.z)
-
-    return result
-}
-
 nonisolated func updateScoreHeartRate(_ value: TranceHeartRate) {
     trance.recordScoreHeartRate(
         value.available,
@@ -74,22 +61,4 @@ nonisolated func updateScoreHeartRate(_ value: TranceHeartRate) {
         value.timestamp,
         Date().timeIntervalSince1970
     )
-}
-
-nonisolated func updateScoreFace(_ value: TranceFaceData) {
-    var sample = trance.ScoreFaceSample()
-
-    sample.available = value.available
-    sample.timestamp = value.timestamp
-
-    sample.leftEyeClosure = Double(value.leftEyeClosure)
-    sample.rightEyeClosure = Double(value.rightEyeClosure)
-
-    sample.leftOrigin = scoreVector(value.leftEyeOrigin)
-    sample.rightOrigin = scoreVector(value.rightEyeOrigin)
-
-    sample.leftDirection = scoreVector(value.leftEyeDirection)
-    sample.rightDirection = scoreVector(value.rightEyeDirection)
-
-    trance.recordScoreFace(sample, Date().timeIntervalSince1970)
 }

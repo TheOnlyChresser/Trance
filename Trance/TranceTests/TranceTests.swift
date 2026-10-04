@@ -9,6 +9,7 @@ import Testing
 
 struct TranceTests {
 
+    // this placeholder has no input values or assertions yet, so it does not check app behavior.
     @Test func example() async throws {
         // Write your test here and use APIs like `#expect(...)` to check expected conditions.
         // Swift Testing Documentation

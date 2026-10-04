@@ -1,5 +1,10 @@
 #include "../lib/øjensporer.hpp"
 
+#include "Trance-Swift.h"
+
+#include <cmath>
+#include <vector>
+
 øjensporer::øjensporer() = default;
 øjensporer::~øjensporer() = default;
 

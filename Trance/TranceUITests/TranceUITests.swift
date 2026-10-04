@@ -22,6 +22,7 @@ final class TranceUITests: XCTestCase {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
+    // this test launches the app with default arguments; it has no UI assertions yet.
     @MainActor
     func testExample() throws {
         // UI tests must launch the application that they test.
@@ -33,6 +34,8 @@ final class TranceUITests: XCTestCase {
         // https://developer.apple.com/documentation/xcuiautomation
     }
 
+    // this test measures launch time using XCTApplicationLaunchMetric and default app arguments.
+    // it records startup performance without setting an explicit time limit.
     @MainActor
     func testLaunchPerformance() throws {
         // This measures how long it takes to launch your application.
