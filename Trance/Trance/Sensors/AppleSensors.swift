@@ -176,6 +176,8 @@ import Foundation
                 value.rightEyeOrigin = Self.vector3(right.columns.3)
                 value.leftEyeDirection = Self.vector3(left.columns.2)
                 value.rightEyeDirection = Self.vector3(right.columns.2)
+                value.leftEyeTransform = Self.matrix4(left)
+                value.rightEyeTransform = Self.matrix4(right)
                 value.leftEyeClosure = face.blendShapes[.eyeBlinkLeft]?.floatValue ?? 0
                 value.rightEyeClosure = face.blendShapes[.eyeBlinkRight]?.floatValue ?? 0
                 value.headTransform = TranceMatrix4(
@@ -193,6 +195,11 @@ import Foundation
         }
         nonisolated private static func vector3(_ v: SIMD4<Float>) -> TranceVector3 {
             TranceVector3(x: v.x, y: v.y, z: v.z)
+        }
+        nonisolated private static func matrix4(_ value: simd_float4x4) -> TranceMatrix4 {
+            TranceMatrix4(
+                c0: vector4(value.columns.0), c1: vector4(value.columns.1),
+                c2: vector4(value.columns.2), c3: vector4(value.columns.3))
         }
         nonisolated private static func vector4(_ v: SIMD4<Float>) -> TranceVector4 {
             TranceVector4(x: v.x, y: v.y, z: v.z, w: v.w)

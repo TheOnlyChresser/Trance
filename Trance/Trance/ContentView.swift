@@ -11,6 +11,8 @@ import SwiftUI
 struct ContentView: View {
     @State private var minutes = 10
     @State private var isRunning = false
+    @State private var isCalibrating = false
+    @State private var startAfterCalibration = false
 
     private let durations = [1, 2, 5, 10, 30, 60]
 
@@ -37,7 +39,8 @@ struct ContentView: View {
             Spacer()
 
             Button("Start") {
-                isRunning = true
+                startAfterCalibration = false
+                isCalibrating = true
             }
             .buttonStyle(.glassProminent)
             .controlSize(.extraLarge)
@@ -47,6 +50,20 @@ struct ContentView: View {
         }
         .padding()
         .background { MeshBackground() }
+        .fullScreenCover(isPresented: $isCalibrating, onDismiss: {
+            if startAfterCalibration {
+                startAfterCalibration = false
+                isRunning = true
+            }
+        }) {
+            ScreenCalibrationView {
+                startAfterCalibration = false
+                isCalibrating = false
+            } onFinish: {
+                startAfterCalibration = true
+                isCalibrating = false
+            }
+        }
         .fullScreenCover(isPresented: $isRunning) {
             SessionView(duration: .seconds(minutes * 60)) { isRunning = false }
         }

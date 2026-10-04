@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../core/lib/SessionScores.hpp"
+#include "../../core/lib/ScreenCalibration.hpp"
 
 namespace trance {
 enum class SensorUpdate { heartRate, face, hardware };
