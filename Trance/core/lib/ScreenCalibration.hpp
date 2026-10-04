@@ -1,10 +1,10 @@
 #pragma once
 
+#include "øjensporer.hpp"
+
 namespace trance {
 
-struct ScreenVector3 {
-  double x = 0, y = 0, z = 0;
-};
+using ScreenVector3 = vec3d;
 
 struct EyePose {
   ScreenVector3 origin;

@@ -15,6 +15,7 @@ struct SessionView: View {
     // når sessionen blev vist, så der gemmes kun små værdier
     @State private var afslapningsscore: Double?
     @State private var fokusscore: Double?
+    @State private var focusPoint: CGPoint?
 
     private var afslapning: Double { afslapningsscore ?? 0.7 }
 
@@ -62,6 +63,14 @@ struct SessionView: View {
                     } animation: { indaending in
                         .easeInOut(duration: indaending ? 4 : 6)
                     }
+                    .onGeometryChange(for: CGPoint.self) { geometry in
+                        let frame = geometry.frame(in: .global)
+
+                        return CGPoint(x: frame.midX, y: frame.midY)
+                    } action: { point in
+                        focusPoint = point
+                    }
+                    .onChange(of: focusPoint) { _, _ in configureScreenFocus() }
                     .padding(.bottom, 128)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     // prikken forsvinder hurtigt, så den ikke ligger oven på teksten der kommer frem
@@ -80,29 +89,26 @@ struct SessionView: View {
                     }
                     // scoren regnes ud i c++; her startes den, og pulsen og scoren hentes hvert 5. sekund
                     .task {
-                        let start = Date().timeIntervalSince1970
-                        var afslapningKalibreret = false
                         clearScoreCalibration()
-                        // prikken sidder lige under kameraet, så blikket tæller som fokus inden for 20° af kameraet
-                        configureFocusScore(target: TranceVector3(), toleranceDegrees: 20)
+                        configureScreenFocus()
                         startScoreSession()
+
                         // uret måler kun pulsen ofte nok til scoren, mens det kører en workout
                         SensorAccess.startWatchPulse()
+
                         defer {
                             stopScoreSession()
                             SensorAccess.stopWatchPulse()
                         }
+
                         while !Task.isCancelled {
                             let heartRate = copySensorSnapshot().heartRate
                             if heartRate.available, heartRate.bpm > 0 { bpm = heartRate.bpm }
-                            // den første måling fra sessionen er udgangspunktet, og 10 % lavere puls er helt afslappet
-                            if !afslapningKalibreret, heartRate.available, heartRate.timestamp >= start {
-                                afslapningKalibreret = configureRelaxationScore(
-                                    startBpm: heartRate.bpm, relaxedBpm: heartRate.bpm * 0.9)
-                            }
+
                             let scores = copySessionScores()
                             afslapningsscore = scores.afslapningsscore.available ? scores.afslapningsscore.value : nil
                             fokusscore = scores.fokusscore.available ? scores.fokusscore.value : nil
+
                             afslapningSamples.append(afslapning)
                             try? await Task.sleep(for: .seconds(5))
                         }
@@ -112,6 +118,28 @@ struct SessionView: View {
         .statusBarHidden()
         // haptic feedback når tiden er gået
         .sensoryFeedback(.impact(flexibility: .soft), trigger: resultat)
+    }
+
+    private func configureScreenFocus() {
+        #if os(iOS)
+        let screen = copyCalibratedScreen()
+        guard screen.available, let focusPoint else { return }
+
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive }
+        guard let scene else { return }
+
+        let bounds = scene.screen.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+
+        let scaleX = Double(screen.pixelWidth - 1) / Double(bounds.width)
+        let scaleY = Double(screen.pixelHeight - 1) / Double(bounds.height)
+
+        let x = Double(focusPoint.x - bounds.minX) * scaleX
+        let y = Double(focusPoint.y - bounds.minY) * scaleY
+
+        configureFocusScore(x: x, y: y, radius: 32 * scaleX)
+        #endif
     }
 }
 

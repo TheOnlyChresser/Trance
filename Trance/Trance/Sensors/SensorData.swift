@@ -58,16 +58,19 @@ public nonisolated func receiveFokusPunkt(_ x: Float, _ y: Float, _ z: Float) {
     updateScoreHeartRate(value)
     trance.sensorDataChanged(.heartRate)
 }
+
 @MainActor func updateFace(_ value: TranceFaceData) {
     updateScreenTracking(value)
     let gaze = copyScreenGaze()
+
     var face = value
     face.focusPointAvailable = gaze.combined.available && gaze.combined.onScreen
     face.focusPoint = face.focusPointAvailable ? gaze.combined.position : TranceVector3()
+
     sensorStore.update { $0.face = face }
-    updateScoreFace(value)
     trance.sensorDataChanged(.face)
 }
+
 @MainActor func updateHardware(_ value: TranceHardware) {
     sensorStore.update { $0.hardware = value }
     trance.sensorDataChanged(.hardware)

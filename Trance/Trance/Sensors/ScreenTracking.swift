@@ -38,7 +38,10 @@ public nonisolated func copyCalibratedScreen() -> TranceScreenPlane {
 }
 
 nonisolated func updateScreenTracking(_ face: TranceFaceData) {
-    trance.recordScreenGaze(eyeTrackingSample(face), Date().timeIntervalSince1970)
+    let now = Date().timeIntervalSince1970
+
+    trance.recordScreenGaze(eyeTrackingSample(face), now)
+    trance.recordScoreGaze(trance.copyScreenGaze(now), now)
 }
 
 nonisolated func eyeTrackingSample(_ face: TranceFaceData) -> trance.EyeTrackingSample {

@@ -14,26 +14,6 @@ constexpr double maximumSampleAge = 0.25;
 constexpr double maximumRaySeparation = 0.015;
 constexpr double maximumCalibrationError = 0.012;
 
-ScreenVector3 operator+(ScreenVector3 a, ScreenVector3 b) {
-  return {a.x + b.x, a.y + b.y, a.z + b.z};
-}
-
-ScreenVector3 operator-(ScreenVector3 a, ScreenVector3 b) {
-  return {a.x - b.x, a.y - b.y, a.z - b.z};
-}
-
-ScreenVector3 operator*(ScreenVector3 value, double factor) {
-  return {value.x * factor, value.y * factor, value.z * factor};
-}
-
-double dot(ScreenVector3 a, ScreenVector3 b) {
-  return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-ScreenVector3 cross(ScreenVector3 a, ScreenVector3 b) {
-  return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
-}
-
 double length(ScreenVector3 value) { return std::sqrt(dot(value, value)); }
 
 bool finite(ScreenVector3 value) {
