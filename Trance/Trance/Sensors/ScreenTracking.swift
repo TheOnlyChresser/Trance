@@ -14,6 +14,7 @@ public nonisolated struct TranceScreenPlane: Sendable {
     public var horizontal = TranceVector3(), vertical = TranceVector3()
     public var pixelWidth: Int = 0, pixelHeight: Int = 0
     public var calibrationError: Double = 0
+    public var normalizedCalibrationError: Double = 0
 }
 
 public nonisolated struct TranceScreenGaze: Sendable {
@@ -29,6 +30,29 @@ public nonisolated func copyScreenGaze() -> TranceScreenGaze {
 
 public nonisolated func copyCalibratedScreen() -> TranceScreenPlane {
     screenPlane(trance.copyCalibratedScreen())
+}
+
+nonisolated func screenCalibrationFailureMessage() -> String {
+    let status = trance.copyScreenCalibrationStatus()
+    let value = String(format: "%.1f", status.measuredValue * 100)
+    switch status.failure {
+    case .resolution:
+        return "Skærmens opløsning kunne ikke læses. Start kalibreringen igen."
+    case .samples:
+        return "Punkt \(status.pointIndex + 1) fik kun \(status.sampleCount) gyldige øjenmålinger. Hold ansigtet synligt, og prøv igen."
+    case .layout:
+        return "Kalibreringspunkterne kunne ikke matches til skærmen. Start kalibreringen igen."
+    case .width:
+        return "Der var for lidt forskel mellem blikmålingerne mod venstre og højre. Kig på hvert punkt, og prøv igen."
+    case .height:
+        return "Der var for lidt forskel mellem blikmålingerne oppe og nede. Kig på hvert punkt, og prøv igen."
+    case .axes:
+        return "Blikmålingerne kunne ikke skelne mellem skærmens to retninger. Kig på hvert punkt, og prøv igen."
+    case .pointError, .meanError:
+        return "Blikpunkterne afviger \(value) % fra skærmens kalibreringspunkter. Kig på hvert punkt, og prøv igen."
+    default:
+        return "Kalibreringen kunne ikke gennemføres. Prøv igen."
+    }
 }
 
 nonisolated func updateScreenTracking(_ face: TranceFaceData) -> TranceScreenGaze {
@@ -93,5 +117,6 @@ private nonisolated func screenPlane(_ screen: trance.ScreenRectangle) -> Trance
         available: screen.available, topLeft: swiftVector(screen.topLeft),
         horizontal: swiftVector(screen.horizontal), vertical: swiftVector(screen.vertical),
         pixelWidth: Int(screen.pixelWidth), pixelHeight: Int(screen.pixelHeight),
-        calibrationError: screen.calibrationError)
+        calibrationError: screen.calibrationError,
+        normalizedCalibrationError: screen.normalizedCalibrationError)
 }

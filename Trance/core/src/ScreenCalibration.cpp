@@ -13,8 +13,14 @@ namespace {
 constexpr int samplesPerPoint = 45;
 constexpr double maximumCalibrationError = 0.1;
 constexpr double maximumEyeToScreenDistance = 1.5;
+constexpr double minimumGazeSpan = 0.001;
+ScreenCalibrationStatus calibrationStatus;
 
-bool rejectCalibration(const char *reason, double value, double limit = 0) {
+bool rejectCalibration(ScreenCalibrationFailure failure, const char *reason,
+                       double value, double limit = 0) {
+  calibrationStatus.failure = failure;
+  calibrationStatus.measuredValue = value;
+  calibrationStatus.limit = limit;
   std::cout << "Trance screen calibration failed: " << reason
             << ", value=" << value;
   if (limit > 0)
@@ -53,22 +59,34 @@ struct CalibrationPoint {
   double x = 0, y = 0;
   double lastTimestamp = 0;
   ScreenVector3 sum;
+  double squaredDistanceSum = 0;
+  ScreenVector3 leftSum, rightSum;
 };
 
 std::mutex trackingMutex;
 std::array<CalibrationPoint, 5> calibrationPoints;
 ScreenRectangle calibratedScreen;
+ScreenRectangle leftCalibration, rightCalibration;
 ScreenGaze latestGaze;
 int calibrationWidth = 0, calibrationHeight = 0;
 
-std::optional<std::array<ScreenVector3, 3>> fitRectangle() {
+ScreenVector3 pointMean(const CalibrationPoint &point, int eye) {
+  const double weight = 1.0 / point.count;
+  if (eye == 0)
+    return point.leftSum * weight;
+  if (eye == 1)
+    return point.rightSum * weight;
+  return point.sum * weight;
+}
+
+std::optional<std::array<ScreenVector3, 3>> fitRectangle(int eye) {
   std::array<ScreenVector3, 5> positions;
   ScreenVector3 center;
   for (int index = 0; index < 5; ++index) {
     const auto &point = calibrationPoints[index];
     if (point.count < samplesPerPoint)
       return std::nullopt;
-    positions[index] = point.sum * (1.0 / point.count);
+    positions[index] = pointMean(point, eye);
     center = center + positions[index];
   }
 
@@ -98,10 +116,90 @@ ScreenVector3 screenPosition(ScreenRectangle screen, double x, double y) {
   return screen.topLeft + screen.horizontal * x + screen.vertical * y;
 }
 
-ScreenHit eyeHit(EyePose eye, double closure, ScreenRectangle &screen) {
-  screen = openEye(closure) ? screenRelativeToEye(calibratedScreen, eye)
+ScreenHit eyeHit(EyePose eye, double closure, ScreenRectangle calibration,
+                 ScreenRectangle &screen) {
+  screen = openEye(closure) ? screenRelativeToEye(calibration, eye)
                             : ScreenRectangle{};
   return intersectScreen(screen, {}, {0, 0, 1});
+}
+
+std::optional<ScreenRectangle> fitCalibration(int eye) {
+  const auto coefficients = fitRectangle(eye);
+  if (!coefficients) {
+    rejectCalibration(ScreenCalibrationFailure::layout,
+                      "invalid five-point target layout", 0);
+    return std::nullopt;
+  }
+
+  const auto center = (*coefficients)[0];
+  const auto horizontal = (*coefficients)[1];
+  const auto vertical = (*coefficients)[2];
+  const double width = length(horizontal), height = length(vertical);
+  const char *label = eye == 0 ? "left" : eye == 1 ? "right" : "combined";
+  std::cout << "Trance screen calibration fit (" << label << "): center(m)=("
+            << center.x << ", " << center.y << ", " << center.z
+            << "), gaze span=" << width << 'x' << height << " m\n"
+            << std::flush;
+  if (!finite(center) || !finite(horizontal) || width < minimumGazeSpan) {
+    rejectCalibration(ScreenCalibrationFailure::width,
+                      "horizontal gaze span is too small (m)", width,
+                      minimumGazeSpan);
+    return std::nullopt;
+  }
+  if (!finite(vertical) || height < minimumGazeSpan) {
+    rejectCalibration(ScreenCalibrationFailure::height,
+                      "vertical gaze span is too small (m)", height,
+                      minimumGazeSpan);
+    return std::nullopt;
+  }
+  const double axisSeparation =
+      length(cross(horizontal, vertical)) / (width * height);
+  if (!std::isfinite(axisSeparation) || axisSeparation < 0.05) {
+    rejectCalibration(ScreenCalibrationFailure::axes,
+                      "gaze axes cannot be distinguished", axisSeparation,
+                      0.05);
+    return std::nullopt;
+  }
+
+  ScreenRectangle screen;
+  screen.available = true;
+  screen.topLeft = center - (horizontal + vertical) * 0.5;
+  screen.horizontal = horizontal;
+  screen.vertical = vertical;
+  screen.pixelWidth = calibrationWidth;
+  screen.pixelHeight = calibrationHeight;
+
+  double squaredError = 0, normalizedSquaredError = 0;
+  for (const auto &point : calibrationPoints) {
+    const auto mean = pointMean(point, eye);
+    const auto hit =
+        intersectScreen(screen, mean + ScreenVector3{0, 0, 1}, {0, 0, -1});
+    const double error =
+        length(screenPosition(screen, point.x, point.y) - mean);
+    const double normalizedError =
+        hit.available ? std::hypot(hit.x / (screen.pixelWidth - 1) - point.x,
+                                   hit.y / (screen.pixelHeight - 1) - point.y)
+                      : INFINITY;
+    if (normalizedError > 2 * maximumCalibrationError) {
+      rejectCalibration(ScreenCalibrationFailure::pointError,
+                        "point mapping error exceeds limit", normalizedError,
+                        2 * maximumCalibrationError);
+      return std::nullopt;
+    }
+    squaredError += error * error;
+    normalizedSquaredError += normalizedError * normalizedError;
+  }
+  screen.calibrationError = std::sqrt(squaredError / calibrationPoints.size());
+  screen.normalizedCalibrationError =
+      std::sqrt(normalizedSquaredError / calibrationPoints.size());
+  if (!std::isfinite(screen.normalizedCalibrationError) ||
+      screen.normalizedCalibrationError > maximumCalibrationError) {
+    rejectCalibration(
+        ScreenCalibrationFailure::meanError, "mean mapping error exceeds limit",
+        screen.normalizedCalibrationError, maximumCalibrationError);
+    return std::nullopt;
+  }
+  return screen;
 }
 
 } // namespace
@@ -119,10 +217,17 @@ ScreenVector3 screenGridPoint(ScreenRectangle screen, int column, int row) {
 void beginScreenCalibration(int pixelWidth, int pixelHeight) {
   const std::lock_guard lock(trackingMutex);
   calibrationPoints = {};
+  calibrationStatus = {};
   calibratedScreen = {};
+  leftCalibration = rightCalibration = {};
   latestGaze = {};
   calibrationWidth = pixelWidth;
   calibrationHeight = pixelHeight;
+  if (pixelWidth >= 2 && pixelHeight >= 2)
+    std::cout << "Trance screen calibration started: camera-plane affine v3, "
+              << pixelWidth << 'x' << pixelHeight << " px, " << samplesPerPoint
+              << " samples/point\n"
+              << std::flush;
 }
 
 void resetScreenCalibration() { beginScreenCalibration(0, 0); }
@@ -153,91 +258,67 @@ int addScreenCalibrationSample(int pointIndex, double x, double y,
   point.x = x;
   point.y = y;
   point.lastTimestamp = sample.timestamp;
-  point.sum = point.sum + (*left + *right) * 0.5;
-  return ++point.count;
+  const auto position = (*left + *right) * 0.5;
+  point.sum = point.sum + position;
+  point.leftSum = point.leftSum + *left;
+  point.rightSum = point.rightSum + *right;
+  point.squaredDistanceSum += dot(position, position);
+  ++point.count;
+  if (point.count == samplesPerPoint) {
+    const auto mean = point.sum * (1.0 / point.count);
+    const double variance =
+        point.squaredDistanceSum / point.count - dot(mean, mean);
+    std::cout << "Trance screen calibration point " << pointIndex + 1
+              << "/5: " << point.count << " samples, target=(" << x << ", " << y
+              << "), projected mean(m)=(" << mean.x << ", " << mean.y << ", "
+              << mean.z
+              << "), spread=" << std::sqrt(std::max(0.0, variance)) * 1000
+              << " mm\n"
+              << std::flush;
+  }
+  return point.count;
 }
 
 bool finishScreenCalibration() {
   const std::lock_guard lock(trackingMutex);
+  calibrationStatus = {};
   if (calibrationWidth < 2 || calibrationHeight < 2)
-    return rejectCalibration("invalid screen resolution", calibrationWidth);
+    return rejectCalibration(ScreenCalibrationFailure::resolution,
+                             "invalid screen resolution", calibrationWidth);
   for (int index = 0; index < 5; ++index) {
     if (calibrationPoints[index].count < samplesPerPoint) {
+      calibrationStatus.failure = ScreenCalibrationFailure::samples;
+      calibrationStatus.pointIndex = index;
+      calibrationStatus.sampleCount = calibrationPoints[index].count;
       std::cout << "Trance screen calibration failed: point " << index
                 << " has " << calibrationPoints[index].count << '/'
-                << samplesPerPoint << " samples\n" << std::flush;
+                << samplesPerPoint << " samples\n"
+                << std::flush;
       return false;
     }
   }
-  const auto coefficients = fitRectangle();
-  if (!coefficients)
-    return rejectCalibration("invalid five-point target layout", 0);
-
-  const auto center = (*coefficients)[0];
-  auto horizontal = (*coefficients)[1];
-  const double width = length(horizontal);
-  if (!finite(center) || !finite(horizontal) || width < 0.02 || width > 0.3)
-    return rejectCalibration("screen width outside 0.02..0.30 m", width);
-
-  const auto horizontalAxis = horizontal * (1 / width);
-  auto vertical = (*coefficients)[2] -
-                  horizontalAxis * dot((*coefficients)[2], horizontalAxis);
-  const double height = length(vertical);
-  const double aspectRatio =
-      double(calibrationWidth - 1) / (calibrationHeight - 1);
-  if (!finite(vertical) || height < 0.02 || height > 0.4)
-    return rejectCalibration("screen height outside 0.02..0.40 m", height);
-  const double aspectError = std::abs(width / height / aspectRatio - 1);
-  if (aspectError > 0.25)
-    return rejectCalibration("aspect-ratio error exceeds 0.25", aspectError);
-  if (length(center) > 0.2)
-    return rejectCalibration("screen center distance exceeds 0.20 m",
-                             length(center));
-  if (std::abs(center.z) > 0.08)
-    return rejectCalibration("screen depth exceeds 0.08 m", center.z);
-
-  double horizontalWeight = 0, verticalWeight = 0;
-  for (const auto &point : calibrationPoints) {
-    horizontalWeight += (point.x - 0.5) * (point.x - 0.5);
-    verticalWeight += (point.y - 0.5) * (point.y - 0.5);
-  }
-  const double columns = calibrationWidth - 1;
-  const double rows = calibrationHeight - 1;
-  const double spacing =
-      (width * columns * horizontalWeight + height * rows * verticalWeight) /
-      (columns * columns * horizontalWeight + rows * rows * verticalWeight);
-  horizontal = horizontalAxis * (spacing * columns);
-  vertical = vertical * (spacing * rows / height);
-
-  ScreenRectangle screen;
-  screen.topLeft = center - (horizontal + vertical) * 0.5;
-  screen.horizontal = horizontal;
-  screen.vertical = vertical;
-  screen.pixelWidth = calibrationWidth;
-  screen.pixelHeight = calibrationHeight;
-
-  double squaredError = 0;
-  for (const auto &point : calibrationPoints) {
-    const auto predicted = screenPosition(screen, point.x, point.y);
-    const double error = length(predicted - point.sum * (1.0 / point.count));
-    if (error > 2 * maximumCalibrationError)
-      return rejectCalibration("point fit error exceeds limit (m)", error,
-                               2 * maximumCalibrationError);
-    squaredError += error * error;
-  }
-  screen.calibrationError = std::sqrt(squaredError / calibrationPoints.size());
-  if (!std::isfinite(screen.calibrationError) ||
-      screen.calibrationError > maximumCalibrationError)
-    return rejectCalibration("mean fit error exceeds limit (m)",
-                             screen.calibrationError, maximumCalibrationError);
-
-  screen.available = true;
-  calibratedScreen = screen;
-  std::cout << "Trance screen calibration complete: camera-plane projection"
-            << ", size=" << length(horizontal) * 1000 << 'x'
-            << length(vertical) * 1000 << " mm, error="
-            << screen.calibrationError * 1000 << " mm\n" << std::flush;
+  const auto combined = fitCalibration(-1);
+  if (!combined)
+    return false;
+  const auto left = fitCalibration(0);
+  if (!left)
+    return false;
+  const auto right = fitCalibration(1);
+  if (!right)
+    return false;
+  calibratedScreen = *combined;
+  leftCalibration = *left;
+  rightCalibration = *right;
+  std::cout << "Trance screen calibration complete: per-eye affine mapping"
+            << ", mapping error=" << combined->normalizedCalibrationError * 100
+            << "%\n"
+            << std::flush;
   return true;
+}
+
+ScreenCalibrationStatus copyScreenCalibrationStatus() {
+  const std::lock_guard lock(trackingMutex);
+  return calibrationStatus;
 }
 
 ScreenRectangle copyCalibratedScreen() {
@@ -252,10 +333,10 @@ void recordScreenGaze(EyeTrackingSample sample, double now) {
     return;
 
   latestGaze.timestamp = sample.timestamp;
-  latestGaze.leftEye =
-      eyeHit(sample.leftEye, sample.leftEyeClosure, latestGaze.screenInLeftEye);
+  latestGaze.leftEye = eyeHit(sample.leftEye, sample.leftEyeClosure,
+                              leftCalibration, latestGaze.screenInLeftEye);
   latestGaze.rightEye = eyeHit(sample.rightEye, sample.rightEyeClosure,
-                               latestGaze.screenInRightEye);
+                               rightCalibration, latestGaze.screenInRightEye);
 
   if (latestGaze.leftEye.available && latestGaze.rightEye.available) {
     const auto &left = latestGaze.leftEye;

@@ -143,10 +143,11 @@ void sensorDataChanged(SensorUpdate update) {
   if (screen.available) {
     out << std::setprecision(1) << screen.pixelWidth << 'x'
         << screen.pixelHeight
-        << " px, size=" << length(screen.horizontal) * 1000 << 'x'
+        << " px, raw gaze span=" << length(screen.horizontal) * 1000 << 'x'
         << length(screen.vertical) * 1000
-        << " mm, calibration error=" << screen.calibrationError * 1000
-        << " mm\nScreen top-left (camera, m)=";
+        << " mm, raw fit error=" << screen.calibrationError * 1000
+        << " mm, mapping error=" << screen.normalizedCalibrationError * 100
+        << "%\nCalibration top-left (camera, m)=";
     printVector(out, screen.topLeft);
   } else {
     out << "uncalibrated";

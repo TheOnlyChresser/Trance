@@ -26,6 +26,7 @@ struct ScreenRectangle {
   ScreenVector3 horizontal, vertical;
   int pixelWidth = 0, pixelHeight = 0;
   double calibrationError = 0;
+  double normalizedCalibrationError = 0;
 };
 
 struct ScreenHit {
@@ -42,6 +43,24 @@ struct ScreenGaze {
   ScreenRectangle screenInLeftEye, screenInRightEye;
 };
 
+enum class ScreenCalibrationFailure {
+  none,
+  resolution,
+  samples,
+  layout,
+  width,
+  height,
+  axes,
+  pointError,
+  meanError
+};
+
+struct ScreenCalibrationStatus {
+  ScreenCalibrationFailure failure = ScreenCalibrationFailure::none;
+  int pointIndex = -1, sampleCount = 0;
+  double measuredValue = 0, limit = 0;
+};
+
 ScreenVector3 screenGridPoint(ScreenRectangle screen, int column, int row);
 bool validEye(EyePose eye);
 ScreenHit intersectScreen(ScreenRectangle screen, ScreenVector3 origin,
@@ -54,8 +73,9 @@ int screenCalibrationSampleCount();
 int addScreenCalibrationSample(int pointIndex, double x, double y,
                                EyeTrackingSample sample, double now);
 bool finishScreenCalibration();
+ScreenCalibrationStatus copyScreenCalibrationStatus();
 ScreenRectangle copyCalibratedScreen();
 void recordScreenGaze(EyeTrackingSample sample, double now);
 ScreenGaze copyScreenGaze(double now);
 
-}
+} // namespace trance

@@ -44,7 +44,7 @@ private final class ScreenCalibrationModel {
             }
             try Task.checkCancellation()
             guard trance.finishScreenCalibration() else {
-                return fail("Kalibreringen var ustabil. Hold telefonen stille, og prøv igen.")
+                return fail(screenCalibrationFailureMessage())
             }
             return true
         } catch {
