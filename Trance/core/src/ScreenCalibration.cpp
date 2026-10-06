@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <iostream>
 #include <mutex>
 #include <optional>
 
@@ -11,6 +12,30 @@ namespace {
 
 constexpr int samplesPerPoint = 45;
 constexpr double maximumCalibrationError = 0.1;
+constexpr double maximumEyeToScreenDistance = 1.5;
+
+bool rejectCalibration(const char *reason, double value, double limit = 0) {
+  std::cout << "Trance screen calibration failed: " << reason
+            << ", value=" << value;
+  if (limit > 0)
+    std::cout << ", limit=" << limit;
+  std::cout << '\n' << std::flush;
+  return false;
+}
+
+std::optional<ScreenVector3> cameraPlanePosition(EyePose eye) {
+  ScreenRectangle plane;
+  plane.available = true;
+  plane.horizontal = {1, 0, 0};
+  plane.vertical = {0, 1, 0};
+  plane.pixelWidth = plane.pixelHeight = 2;
+
+  const auto hit = intersectScreen(plane, eye.origin, eye.zAxis);
+  if (!hit.available ||
+      length(hit.position - eye.origin) > maximumEyeToScreenDistance)
+    return std::nullopt;
+  return hit.position;
+}
 
 bool fresh(EyeTrackingSample sample, double now) {
   const double age = now - sample.timestamp;
@@ -120,30 +145,39 @@ int addScreenCalibrationSample(int pointIndex, double x, double y,
       (point.count > 0 && (point.x != x || point.y != y)))
     return point.count;
 
-  const auto position =
-      øjensporer::fokuspoint(sample.leftEye.origin, sample.leftEye.zAxis,
-                             sample.rightEye.origin, sample.rightEye.zAxis);
-  if (!position)
+  const auto left = cameraPlanePosition(sample.leftEye);
+  const auto right = cameraPlanePosition(sample.rightEye);
+  if (!left || !right)
     return point.count;
 
   point.x = x;
   point.y = y;
   point.lastTimestamp = sample.timestamp;
-  point.sum = point.sum + *position;
+  point.sum = point.sum + (*left + *right) * 0.5;
   return ++point.count;
 }
 
 bool finishScreenCalibration() {
   const std::lock_guard lock(trackingMutex);
+  if (calibrationWidth < 2 || calibrationHeight < 2)
+    return rejectCalibration("invalid screen resolution", calibrationWidth);
+  for (int index = 0; index < 5; ++index) {
+    if (calibrationPoints[index].count < samplesPerPoint) {
+      std::cout << "Trance screen calibration failed: point " << index
+                << " has " << calibrationPoints[index].count << '/'
+                << samplesPerPoint << " samples\n" << std::flush;
+      return false;
+    }
+  }
   const auto coefficients = fitRectangle();
-  if (!coefficients || calibrationWidth < 2 || calibrationHeight < 2)
-    return false;
+  if (!coefficients)
+    return rejectCalibration("invalid five-point target layout", 0);
 
   const auto center = (*coefficients)[0];
   auto horizontal = (*coefficients)[1];
   const double width = length(horizontal);
   if (!finite(center) || !finite(horizontal) || width < 0.02 || width > 0.3)
-    return false;
+    return rejectCalibration("screen width outside 0.02..0.30 m", width);
 
   const auto horizontalAxis = horizontal * (1 / width);
   auto vertical = (*coefficients)[2] -
@@ -151,10 +185,16 @@ bool finishScreenCalibration() {
   const double height = length(vertical);
   const double aspectRatio =
       double(calibrationWidth - 1) / (calibrationHeight - 1);
-  if (!finite(vertical) || height < 0.02 || height > 0.4 ||
-      std::abs(width / height / aspectRatio - 1) > 0.25 ||
-      length(center) > 0.2 || std::abs(center.z) > 0.08)
-    return false;
+  if (!finite(vertical) || height < 0.02 || height > 0.4)
+    return rejectCalibration("screen height outside 0.02..0.40 m", height);
+  const double aspectError = std::abs(width / height / aspectRatio - 1);
+  if (aspectError > 0.25)
+    return rejectCalibration("aspect-ratio error exceeds 0.25", aspectError);
+  if (length(center) > 0.2)
+    return rejectCalibration("screen center distance exceeds 0.20 m",
+                             length(center));
+  if (std::abs(center.z) > 0.08)
+    return rejectCalibration("screen depth exceeds 0.08 m", center.z);
 
   double horizontalWeight = 0, verticalWeight = 0;
   for (const auto &point : calibrationPoints) {
@@ -181,16 +221,22 @@ bool finishScreenCalibration() {
     const auto predicted = screenPosition(screen, point.x, point.y);
     const double error = length(predicted - point.sum * (1.0 / point.count));
     if (error > 2 * maximumCalibrationError)
-      return false;
+      return rejectCalibration("point fit error exceeds limit (m)", error,
+                               2 * maximumCalibrationError);
     squaredError += error * error;
   }
   screen.calibrationError = std::sqrt(squaredError / calibrationPoints.size());
   if (!std::isfinite(screen.calibrationError) ||
       screen.calibrationError > maximumCalibrationError)
-    return false;
+    return rejectCalibration("mean fit error exceeds limit (m)",
+                             screen.calibrationError, maximumCalibrationError);
 
   screen.available = true;
   calibratedScreen = screen;
+  std::cout << "Trance screen calibration complete: camera-plane projection"
+            << ", size=" << length(horizontal) * 1000 << 'x'
+            << length(vertical) * 1000 << " mm, error="
+            << screen.calibrationError * 1000 << " mm\n" << std::flush;
   return true;
 }
 
@@ -218,13 +264,14 @@ void recordScreenGaze(EyeTrackingSample sample, double now) {
     combined.available = true;
     combined.x = (left.x + right.x) / 2;
     combined.y = (left.y + right.y) / 2;
-    combined.onScreen = left.onScreen && right.onScreen;
+    const double x = combined.x / (calibratedScreen.pixelWidth - 1);
+    const double y = combined.y / (calibratedScreen.pixelHeight - 1);
+    combined.onScreen =
+        x >= -1e-9 && x <= 1 + 1e-9 && y >= -1e-9 && y <= 1 + 1e-9;
     if (combined.onScreen) {
       combined.column = static_cast<int>(std::lround(combined.x));
       combined.row = static_cast<int>(std::lround(combined.y));
     }
-    const double x = combined.x / (calibratedScreen.pixelWidth - 1);
-    const double y = combined.y / (calibratedScreen.pixelHeight - 1);
     combined.position = screenPosition(calibratedScreen, x, y);
   }
 }
