@@ -36,8 +36,9 @@ private final class ScreenCalibrationModel {
                     count = Int(trance.addScreenCalibrationSample(
                         Int32(index), target.x / size.width, target.y / size.height,
                         eyeTrackingSample(copySensorSnapshot().face), now))
-                    if now - start > 15 {
-                        return fail("Hold begge øjne åbne og telefonen stille, og prøv igen.")
+                    if count < sampleCount && now - start > 15 {
+                        _ = trance.finishScreenCalibration()
+                        return fail(screenCalibrationFailureMessage())
                     }
                     try await Task.sleep(for: .milliseconds(25))
                 }

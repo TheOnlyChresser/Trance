@@ -48,7 +48,9 @@ nonisolated func screenCalibrationFailureMessage() -> String {
         return "Der var for lidt forskel mellem blikmålingerne oppe og nede. Kig på hvert punkt, og prøv igen."
     case .axes:
         return "Blikmålingerne kunne ikke skelne mellem skærmens to retninger. Kig på hvert punkt, og prøv igen."
-    case .pointError, .meanError:
+    case .pointError:
+        return "Punkt \(status.pointIndex + 1) afviger \(value) % fra skærmens kalibreringspunkt. Kig på hvert punkt, og prøv igen."
+    case .meanError:
         return "Blikpunkterne afviger \(value) % fra skærmens kalibreringspunkter. Kig på hvert punkt, og prøv igen."
     default:
         return "Kalibreringen kunne ikke gennemføres. Prøv igen."

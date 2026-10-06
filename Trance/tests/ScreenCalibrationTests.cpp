@@ -47,6 +47,16 @@ EyeTrackingSample sampleWithRightEyeBias(ScreenVector3 target, double time,
   return sample;
 }
 
+EyeTrackingSample sampleWithProjectedEyes(ScreenVector3 left,
+                                          ScreenVector3 right, double time) {
+  EyeTrackingSample sample;
+  sample.available = true;
+  sample.timestamp = time;
+  sample.leftEye = eyeLookingAt({0.0802, 0.0165, -0.4425}, left);
+  sample.rightEye = eyeLookingAt({0.0848, -0.0444, -0.4349}, right);
+  return sample;
+}
+
 int main() {
   ScreenRectangle screen;
   screen.available = true;
@@ -308,7 +318,105 @@ int main() {
   assert(!finishScreenCalibration());
   assert(copyScreenCalibrationStatus().failure ==
          ScreenCalibrationFailure::pointError);
+  assert(copyScreenCalibrationStatus().pointIndex == 0);
   assert(!copyCalibratedScreen().available);
+
+  const auto projectedTarget = [](double x, double y) {
+    return ScreenVector3{-0.02 + 0.035 * (y - 0.5), 0.012 + 0.008 * (x - 0.5),
+                         0};
+  };
+  for (bool leftOnly : {false, true}) {
+    beginScreenCalibration(701, 1401);
+    for (int index = 0; index < 5; ++index) {
+      const auto x = points[index][0], y = points[index][1];
+      const auto target = projectedTarget(x, y);
+      int count = 0, captured = 0;
+      while (count < screenCalibrationSampleCount() && captured < 90) {
+        const auto error = index == 0 && captured < 12
+                               ? ScreenVector3{0.005, 0.018, 0}
+                               : ScreenVector3{};
+        const ScreenVector3 leftNoise{0.00015 * std::sin(captured * 0.73),
+                                      0.00015 * std::cos(captured * 1.17), 0};
+        const ScreenVector3 rightNoise{0.0002 * std::cos(captured * 0.91),
+                                       0.0002 * std::sin(captured * 1.39), 0};
+        time += 0.025;
+        const auto observed = sampleWithProjectedEyes(
+            target + ScreenVector3{0, 0.015, 0} + leftNoise + error,
+            target + ScreenVector3{0, -0.015, 0} + rightNoise +
+                (leftOnly ? ScreenVector3{} : error),
+            time);
+        count = addScreenCalibrationSample(index, x, y, observed, time);
+        ++captured;
+        if (index == 0 && captured == 45)
+          assert(count < screenCalibrationSampleCount());
+      }
+      assert(count == screenCalibrationSampleCount());
+      assert(captured == (index == 0 ? 57 : 45));
+    }
+    assert(finishScreenCalibration());
+    assert(copyCalibratedScreen().normalizedCalibrationError < 0.01);
+    for (const auto &point : points) {
+      time += 0.025;
+      const auto target = projectedTarget(point[0], point[1]);
+      recordScreenGaze(
+          sampleWithProjectedEyes(target + ScreenVector3{0, 0.015, 0},
+                                  target + ScreenVector3{0, -0.015, 0}, time),
+          time);
+      const auto gaze = copyScreenGaze(time);
+      for (const auto &hit : {gaze.leftEye, gaze.rightEye, gaze.combined}) {
+        assert(hit.available && hit.onScreen);
+        assert(std::abs(hit.x - point[0] * 700) < 5);
+        assert(std::abs(hit.y - point[1] * 1400) < 5);
+      }
+    }
+  }
+
+  beginScreenCalibration(701, 1401);
+  const auto centerTarget = projectedTarget(0.5, 0.5);
+  for (int index = 0; index < 120; ++index) {
+    auto left = centerTarget, right = centerTarget;
+    if (index % 4 == 0)
+      left.x += 0.02;
+    else if (index % 4 == 1)
+      left.y += 0.02;
+    else if (index % 4 == 2)
+      right.x += 0.02;
+    else
+      right.y += 0.02;
+    time += 0.025;
+    assert(addScreenCalibrationSample(
+               0, 0.5, 0.5, sampleWithProjectedEyes(left, right, time), time) <
+           screenCalibrationSampleCount());
+  }
+  for (int index = 1; index <= screenCalibrationSampleCount(); ++index) {
+    time += 0.025;
+    assert(addScreenCalibrationSample(
+               0, 0.5, 0.5,
+               sampleWithProjectedEyes(centerTarget, centerTarget, time),
+               time) == index);
+  }
+
+  beginScreenCalibration(701, 1401);
+  for (int index = 0; index < 8; ++index) {
+    time += 0.025;
+    const auto oldTarget = centerTarget + ScreenVector3{0, 0.018, 0};
+    assert(addScreenCalibrationSample(
+               0, 0.5, 0.5, sampleWithProjectedEyes(oldTarget, oldTarget, time),
+               time) == index + 1);
+  }
+  time += 1;
+  for (int index = 0; index < 5; ++index) {
+    const auto x = points[index][0], y = points[index][1];
+    const auto target = projectedTarget(x, y);
+    for (int n = 0; n < screenCalibrationSampleCount(); ++n) {
+      time += 0.025;
+      assert(addScreenCalibrationSample(
+                 index, x, y, sampleWithProjectedEyes(target, target, time),
+                 time) == n + 1);
+    }
+  }
+  assert(finishScreenCalibration());
+  assert(copyCalibratedScreen().normalizedCalibrationError < 1e-8);
 
   const double insetX = 24.0 / 375, insetY = 24.0 / 812;
   const std::array<std::array<double, 2>, 5> loggedTargets = {

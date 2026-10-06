@@ -11,6 +11,7 @@ namespace trance {
 namespace {
 
 constexpr int samplesPerPoint = 45;
+constexpr int maximumCalibrationCandidates = 2 * samplesPerPoint;
 constexpr double maximumCalibrationError = 0.1;
 constexpr double maximumEyeToScreenDistance = 1.5;
 constexpr double minimumGazeSpan = 0.001;
@@ -23,6 +24,8 @@ bool rejectCalibration(ScreenCalibrationFailure failure, const char *reason,
   calibrationStatus.limit = limit;
   std::cout << "Trance screen calibration failed: " << reason
             << ", value=" << value;
+  if (calibrationStatus.pointIndex >= 0)
+    std::cout << ", point=" << calibrationStatus.pointIndex + 1;
   if (limit > 0)
     std::cout << ", limit=" << limit;
   std::cout << '\n' << std::flush;
@@ -54,13 +57,19 @@ bool openEye(double closure) {
   return std::isfinite(closure) && closure >= 0 && closure < 0.5;
 }
 
+struct CalibrationObservation {
+  ScreenVector3 left, right;
+};
+
 struct CalibrationPoint {
   int count = 0;
+  int candidateCount = 0;
   double x = 0, y = 0;
   double lastTimestamp = 0;
   ScreenVector3 sum;
   double squaredDistanceSum = 0;
   ScreenVector3 leftSum, rightSum;
+  std::array<CalibrationObservation, maximumCalibrationCandidates> observations;
 };
 
 std::mutex trackingMutex;
@@ -69,6 +78,54 @@ ScreenRectangle calibratedScreen;
 ScreenRectangle leftCalibration, rightCalibration;
 ScreenGaze latestGaze;
 int calibrationWidth = 0, calibrationHeight = 0;
+
+double median(std::array<double, maximumCalibrationCandidates> values,
+              int count) {
+  auto middle = values.begin() + count / 2;
+  std::nth_element(values.begin(), middle, values.begin() + count);
+  if (count % 2 != 0)
+    return *middle;
+  return (*middle + *std::max_element(values.begin(), middle)) * 0.5;
+}
+
+void summarizePoint(CalibrationPoint &point) {
+  std::array<std::array<double, maximumCalibrationCandidates>, 4> coordinates{};
+  for (int index = 0; index < point.candidateCount; ++index) {
+    const auto &sample = point.observations[index];
+    coordinates[0][index] = sample.left.x;
+    coordinates[1][index] = sample.left.y;
+    coordinates[2][index] = sample.right.x;
+    coordinates[3][index] = sample.right.y;
+  }
+  std::array<double, 4> centers{}, limits{};
+  for (int axis = 0; axis < 4; ++axis) {
+    centers[axis] = median(coordinates[axis], point.candidateCount);
+    for (int index = 0; index < point.candidateCount; ++index)
+      coordinates[axis][index] =
+          std::abs(coordinates[axis][index] - centers[axis]);
+    limits[axis] =
+        std::max(4.5 * median(coordinates[axis], point.candidateCount), 1e-5);
+  }
+
+  point.count = 0;
+  point.sum = point.leftSum = point.rightSum = {};
+  point.squaredDistanceSum = 0;
+  for (int index = point.candidateCount - 1;
+       index >= 0 && point.count < samplesPerPoint; --index) {
+    bool inlier = true;
+    for (int axis = 0; axis < 4; ++axis)
+      inlier = inlier && coordinates[axis][index] <= limits[axis];
+    if (!inlier)
+      continue;
+    const auto &sample = point.observations[index];
+    const auto position = (sample.left + sample.right) * 0.5;
+    point.leftSum = point.leftSum + sample.left;
+    point.rightSum = point.rightSum + sample.right;
+    point.sum = point.sum + position;
+    point.squaredDistanceSum += dot(position, position);
+    ++point.count;
+  }
+}
 
 ScreenVector3 pointMean(const CalibrationPoint &point, int eye) {
   const double weight = 1.0 / point.count;
@@ -233,7 +290,10 @@ std::optional<ScreenRectangle> fitCalibration(int eye) {
   screen = *mapping;
 
   double squaredError = 0, normalizedSquaredError = 0;
-  for (const auto &point : calibrationPoints) {
+  double largestError = 0;
+  int worstPoint = 0;
+  for (int index = 0; index < 5; ++index) {
+    const auto &point = calibrationPoints[index];
     const auto mean = pointMean(point, eye);
     const auto hit =
         intersectScreen(screen, mean + ScreenVector3{0, 0, 1}, {0, 0, -1});
@@ -244,10 +304,16 @@ std::optional<ScreenRectangle> fitCalibration(int eye) {
                                    hit.y / (screen.pixelHeight - 1) - point.y)
                       : INFINITY;
     if (normalizedError > 2 * maximumCalibrationError) {
+      calibrationStatus.pointIndex = index;
+      calibrationStatus.sampleCount = point.count;
       rejectCalibration(ScreenCalibrationFailure::pointError,
                         "point mapping error exceeds limit", normalizedError,
                         2 * maximumCalibrationError);
       return std::nullopt;
+    }
+    if (normalizedError > largestError) {
+      largestError = normalizedError;
+      worstPoint = index;
     }
     squaredError += error * error;
     normalizedSquaredError += normalizedError * normalizedError;
@@ -257,6 +323,8 @@ std::optional<ScreenRectangle> fitCalibration(int eye) {
       std::sqrt(normalizedSquaredError / calibrationPoints.size());
   if (!std::isfinite(screen.normalizedCalibrationError) ||
       screen.normalizedCalibrationError > maximumCalibrationError) {
+    calibrationStatus.pointIndex = worstPoint;
+    calibrationStatus.sampleCount = calibrationPoints[worstPoint].count;
     rejectCalibration(
         ScreenCalibrationFailure::meanError, "mean mapping error exceeds limit",
         screen.normalizedCalibrationError, maximumCalibrationError);
@@ -287,7 +355,7 @@ void beginScreenCalibration(int pixelWidth, int pixelHeight) {
   calibrationWidth = pixelWidth;
   calibrationHeight = pixelHeight;
   if (pixelWidth >= 2 && pixelHeight >= 2)
-    std::cout << "Trance screen calibration started: direct pixel mapping v4, "
+    std::cout << "Trance screen calibration started: robust pixel mapping v5, "
               << pixelWidth << 'x' << pixelHeight << " px, " << samplesPerPoint
               << " samples/point\n"
               << std::flush;
@@ -310,7 +378,7 @@ int addScreenCalibrationSample(int pointIndex, double x, double y,
       !fresh(sample, now) || !openEye(sample.leftEyeClosure) ||
       !openEye(sample.rightEyeClosure) || !validEye(sample.leftEye) ||
       !validEye(sample.rightEye) || sample.timestamp <= point.lastTimestamp ||
-      (point.count > 0 && (point.x != x || point.y != y)))
+      (point.candidateCount > 0 && (point.x != x || point.y != y)))
     return point.count;
 
   const auto left = cameraPlanePosition(sample.leftEye);
@@ -318,23 +386,28 @@ int addScreenCalibrationSample(int pointIndex, double x, double y,
   if (!left || !right)
     return point.count;
 
+  if (point.candidateCount > 0 &&
+      sample.timestamp - point.lastTimestamp > maximumGazeSampleAge)
+    point = {};
   point.x = x;
   point.y = y;
   point.lastTimestamp = sample.timestamp;
-  const auto position = (*left + *right) * 0.5;
-  point.sum = point.sum + position;
-  point.leftSum = point.leftSum + *left;
-  point.rightSum = point.rightSum + *right;
-  point.squaredDistanceSum += dot(position, position);
-  ++point.count;
+  if (point.candidateCount == maximumCalibrationCandidates) {
+    std::move(point.observations.begin() + 1, point.observations.end(),
+              point.observations.begin());
+    --point.candidateCount;
+  }
+  point.observations[point.candidateCount++] = {*left, *right};
+  summarizePoint(point);
   if (point.count == samplesPerPoint) {
     const auto mean = point.sum * (1.0 / point.count);
     const double variance =
         point.squaredDistanceSum / point.count - dot(mean, mean);
     std::cout << "Trance screen calibration point " << pointIndex + 1
-              << "/5: " << point.count << " samples, target=(" << x << ", " << y
-              << "), projected mean(m)=(" << mean.x << ", " << mean.y << ", "
-              << mean.z
+              << "/5: " << point.count
+              << " samples, window=" << point.candidateCount << ", target=("
+              << x << ", " << y << "), projected mean(m)=(" << mean.x << ", "
+              << mean.y << ", " << mean.z
               << "), spread=" << std::sqrt(std::max(0.0, variance)) * 1000
               << " mm\n"
               << std::flush;
@@ -353,7 +426,7 @@ bool finishScreenCalibration() {
       calibrationStatus.failure = ScreenCalibrationFailure::samples;
       calibrationStatus.pointIndex = index;
       calibrationStatus.sampleCount = calibrationPoints[index].count;
-      std::cout << "Trance screen calibration failed: point " << index
+      std::cout << "Trance screen calibration failed: point " << index + 1
                 << " has " << calibrationPoints[index].count << '/'
                 << samplesPerPoint << " samples\n"
                 << std::flush;
