@@ -11,43 +11,87 @@ import ARKit
 @Observable
 private final class ScreenCalibrationModel {
     private(set) var pointIndex = 0
+    private(set) var progress = 0.0
+    private(set) var isRepeatingPoint = false
     private(set) var error = ""
+    private var calibrationSize: CGSize?
+    private var pixelWidth = 0
+    private var pixelHeight = 0
+    private var pendingPoints: [Int] = []
+    private var visitedPoints: Set<Int> = []
 
     func calibrate(size: CGSize) async -> Bool {
-        pointIndex = 0
         error = ""
-        trance.resetScreenCalibration()
         guard let resolution = screenResolution(size: size) else {
+            calibrationSize = nil
+            trance.resetScreenCalibration()
             return fail("Kalibrering kræver en iPhone med ansigtssporing og kameraadgang.")
         }
-        trance.beginScreenCalibration(Int32(resolution.width), Int32(resolution.height))
+        if calibrationSize != size || pixelWidth != resolution.width || pixelHeight != resolution.height {
+            trance.beginScreenCalibration(Int32(resolution.width), Int32(resolution.height))
+            calibrationSize = size
+            pixelWidth = resolution.width
+            pixelHeight = resolution.height
+            pendingPoints = Array(0..<5)
+            visitedPoints = []
+        }
         let sampleCount = Int(trance.screenCalibrationSampleCount())
+        var retries = Array(repeating: 0, count: 5)
+        var automaticRetries = 0
         SensorAccess.start()
         do {
-            for index in 0..<5 {
-                pointIndex = index
-                try await Task.sleep(for: .seconds(1))
-                let start = Date().timeIntervalSince1970
-                let target = targetPosition(index: index, size: size)
-                var count = 0
-                while count < sampleCount {
-                    try Task.checkCancellation()
-                    let now = Date().timeIntervalSince1970
-                    count = Int(trance.addScreenCalibrationSample(
-                        Int32(index), target.x / size.width, target.y / size.height,
-                        eyeTrackingSample(copySensorSnapshot().face), now))
-                    if count < sampleCount && now - start > 15 {
-                        _ = trance.finishScreenCalibration()
-                        return fail(screenCalibrationFailureMessage())
+            while true {
+                while let index = pendingPoints.first {
+                    pointIndex = index
+                    progress = 0
+                    isRepeatingPoint = visitedPoints.contains(index)
+                    visitedPoints.insert(index)
+                    try await Task.sleep(for: .seconds(1))
+                    let start = Date().timeIntervalSince1970
+                    let target = targetPosition(index: index, size: size)
+                    var count = 0
+                    while count < sampleCount {
+                        try Task.checkCancellation()
+                        let now = Date().timeIntervalSince1970
+                        count = Int(trance.addScreenCalibrationSample(
+                            Int32(index), target.x / size.width, target.y / size.height,
+                            eyeTrackingSample(copySensorSnapshot().face), now))
+                        progress = Double(count) / Double(sampleCount)
+                        if count < sampleCount && now - start > 15 {
+                            _ = trance.finishScreenCalibration()
+                            return fail(screenCalibrationFailureMessage() + " De gennemførte punkter er gemt.")
+                        }
+                        try await Task.sleep(for: .milliseconds(25))
                     }
-                    try await Task.sleep(for: .milliseconds(25))
+                    pendingPoints.removeFirst()
                 }
+                try Task.checkCancellation()
+                if trance.finishScreenCalibration() {
+                    return true
+                }
+                let status = trance.copyScreenCalibrationStatus()
+                let message = screenCalibrationFailureMessage()
+                let suggestedIndex = Int(status.retryPointIndex)
+                guard (status.failure == .pointError || status.failure == .meanError),
+                      (0..<5).contains(suggestedIndex) else {
+                    calibrationSize = nil
+                    return fail(message)
+                }
+                let candidates = [suggestedIndex] + (0..<5).filter {
+                    $0 != suggestedIndex && (Int(status.retryPointMask) & (1 << $0)) != 0
+                }
+                let index = candidates.min { retries[$0] < retries[$1] } ?? suggestedIndex
+                guard trance.restartScreenCalibrationPoint(Int32(index)) else {
+                    calibrationSize = nil
+                    return fail(message)
+                }
+                pendingPoints = [index]
+                guard automaticRetries < 5, retries[index] < 2 else {
+                    return fail("Punkt \(index + 1) skal måles igen. De øvrige punkter er gemt. Kig på den store prik, og tryk på Prøv igen.")
+                }
+                retries[index] += 1
+                automaticRetries += 1
             }
-            try Task.checkCancellation()
-            guard trance.finishScreenCalibration() else {
-                return fail(screenCalibrationFailureMessage())
-            }
-            return true
         } catch {
             return false
         }
@@ -55,7 +99,6 @@ private final class ScreenCalibrationModel {
 
     private func fail(_ text: String) -> Bool {
         error = text
-        trance.resetScreenCalibration()
         return false
     }
 
@@ -96,6 +139,18 @@ struct ScreenCalibrationView: View {
                                height: index == model.pointIndex ? 22 : 8)
                         .position(targetPosition(index: index, size: geometry.size))
                 }
+            }
+            .overlay(alignment: .bottom) {
+                VStack(spacing: 8) {
+                    Text(model.isRepeatingPoint ? "Vi måler punktet igen" : "Kig på den store prik")
+                    Text("Punkt \(model.pointIndex + 1) af 5")
+                        .font(.caption)
+                    ProgressView(value: model.progress)
+                        .tint(.black)
+                }
+                .foregroundStyle(.black)
+                .frame(width: 190)
+                .padding(.bottom, 64)
             }
             .task(id: CalibrationLayout(size: geometry.size, attempt: attempt)) {
                 showError = false

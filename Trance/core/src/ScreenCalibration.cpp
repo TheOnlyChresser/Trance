@@ -12,7 +12,9 @@ namespace {
 
 constexpr int samplesPerPoint = 45;
 constexpr int maximumCalibrationCandidates = 2 * samplesPerPoint;
+constexpr double maximumCalibrationSampleGap = 1.5;
 constexpr double maximumCalibrationError = 0.1;
+constexpr double maximumRetryCandidateDifference = 0.02;
 constexpr double maximumEyeToScreenDistance = 1.5;
 constexpr double minimumGazeSpan = 0.001;
 ScreenCalibrationStatus calibrationStatus;
@@ -26,6 +28,8 @@ bool rejectCalibration(ScreenCalibrationFailure failure, const char *reason,
             << ", value=" << value;
   if (calibrationStatus.pointIndex >= 0)
     std::cout << ", point=" << calibrationStatus.pointIndex + 1;
+  if (calibrationStatus.retryPointIndex >= 0)
+    std::cout << ", retry point=" << calibrationStatus.retryPointIndex + 1;
   if (limit > 0)
     std::cout << ", limit=" << limit;
   std::cout << '\n' << std::flush;
@@ -180,10 +184,13 @@ ScreenHit eyeHit(EyePose eye, double closure, ScreenRectangle calibration,
   return intersectScreen(screen, {}, {0, 0, 1});
 }
 
-std::optional<ScreenRectangle> fitPixelMapping(ScreenRectangle screen,
-                                               int eye) {
+std::optional<ScreenRectangle> fitPixelMapping(ScreenRectangle screen, int eye,
+                                               int excludedPoint = -1) {
   std::array<std::array<double, 5>, 3> equations{};
-  for (const auto &point : calibrationPoints) {
+  for (int index = 0; index < 5; ++index) {
+    if (index == excludedPoint)
+      continue;
+    const auto &point = calibrationPoints[index];
     const auto mean = pointMean(point, eye);
     const auto hit =
         intersectScreen(screen, mean + ScreenVector3{0, 0, 1}, {0, 0, -1});
@@ -233,6 +240,51 @@ std::optional<ScreenRectangle> fitPixelMapping(ScreenRectangle screen,
       !finite(screen.vertical))
     return std::nullopt;
   return screen;
+}
+
+double mappingError(ScreenRectangle screen, const CalibrationPoint &point,
+                    int eye) {
+  const auto mean = pointMean(point, eye);
+  const auto hit =
+      intersectScreen(screen, mean + ScreenVector3{0, 0, 1}, {0, 0, -1});
+  return hit.available ? std::hypot(hit.x / (screen.pixelWidth - 1) - point.x,
+                                    hit.y / (screen.pixelHeight - 1) - point.y)
+                       : INFINITY;
+}
+
+int retryPoint(ScreenRectangle screen, int eye, int fallback) {
+  int result = fallback;
+  double bestError = INFINITY;
+  std::array<double, 5> errors;
+  errors.fill(INFINITY);
+  for (int excluded = 0; excluded < 5; ++excluded) {
+    const auto mapping = fitPixelMapping(screen, eye, excluded);
+    if (!mapping)
+      continue;
+    double squaredError = 0;
+    for (int index = 0; index < 5; ++index) {
+      if (index == excluded)
+        continue;
+      const double error =
+          mappingError(*mapping, calibrationPoints[index], eye);
+      squaredError += error * error;
+    }
+    errors[excluded] = std::sqrt(squaredError / 4);
+    if (errors[excluded] < bestError) {
+      bestError = errors[excluded];
+      result = excluded;
+    }
+  }
+  calibrationStatus.retryPointMask = 0;
+  if (std::isfinite(bestError)) {
+    for (int index = 0; index < 5; ++index) {
+      if (errors[index] <= bestError + maximumRetryCandidateDifference)
+        calibrationStatus.retryPointMask |= 1 << index;
+    }
+  }
+  if (calibrationStatus.retryPointMask & (1 << fallback))
+    result = fallback;
+  return result;
 }
 
 std::optional<ScreenRectangle> fitCalibration(int eye) {
@@ -295,22 +347,9 @@ std::optional<ScreenRectangle> fitCalibration(int eye) {
   for (int index = 0; index < 5; ++index) {
     const auto &point = calibrationPoints[index];
     const auto mean = pointMean(point, eye);
-    const auto hit =
-        intersectScreen(screen, mean + ScreenVector3{0, 0, 1}, {0, 0, -1});
     const double error =
         length(screenPosition(screen, point.x, point.y) - mean);
-    const double normalizedError =
-        hit.available ? std::hypot(hit.x / (screen.pixelWidth - 1) - point.x,
-                                   hit.y / (screen.pixelHeight - 1) - point.y)
-                      : INFINITY;
-    if (normalizedError > 2 * maximumCalibrationError) {
-      calibrationStatus.pointIndex = index;
-      calibrationStatus.sampleCount = point.count;
-      rejectCalibration(ScreenCalibrationFailure::pointError,
-                        "point mapping error exceeds limit", normalizedError,
-                        2 * maximumCalibrationError);
-      return std::nullopt;
-    }
+    const double normalizedError = mappingError(screen, point, eye);
     if (normalizedError > largestError) {
       largestError = normalizedError;
       worstPoint = index;
@@ -318,12 +357,22 @@ std::optional<ScreenRectangle> fitCalibration(int eye) {
     squaredError += error * error;
     normalizedSquaredError += normalizedError * normalizedError;
   }
+  if (largestError > 2 * maximumCalibrationError) {
+    calibrationStatus.pointIndex = worstPoint;
+    calibrationStatus.retryPointIndex = retryPoint(screen, eye, worstPoint);
+    calibrationStatus.sampleCount = calibrationPoints[worstPoint].count;
+    rejectCalibration(ScreenCalibrationFailure::pointError,
+                      "point mapping error exceeds limit", largestError,
+                      2 * maximumCalibrationError);
+    return std::nullopt;
+  }
   screen.calibrationError = std::sqrt(squaredError / calibrationPoints.size());
   screen.normalizedCalibrationError =
       std::sqrt(normalizedSquaredError / calibrationPoints.size());
   if (!std::isfinite(screen.normalizedCalibrationError) ||
       screen.normalizedCalibrationError > maximumCalibrationError) {
     calibrationStatus.pointIndex = worstPoint;
+    calibrationStatus.retryPointIndex = retryPoint(screen, eye, worstPoint);
     calibrationStatus.sampleCount = calibrationPoints[worstPoint].count;
     rejectCalibration(
         ScreenCalibrationFailure::meanError, "mean mapping error exceeds limit",
@@ -355,13 +404,29 @@ void beginScreenCalibration(int pixelWidth, int pixelHeight) {
   calibrationWidth = pixelWidth;
   calibrationHeight = pixelHeight;
   if (pixelWidth >= 2 && pixelHeight >= 2)
-    std::cout << "Trance screen calibration started: robust pixel mapping v5, "
-              << pixelWidth << 'x' << pixelHeight << " px, " << samplesPerPoint
-              << " samples/point\n"
-              << std::flush;
+    std::cout
+        << "Trance screen calibration started: resumable pixel mapping v6, "
+        << pixelWidth << 'x' << pixelHeight << " px, " << samplesPerPoint
+        << " samples/point\n"
+        << std::flush;
 }
 
 void resetScreenCalibration() { beginScreenCalibration(0, 0); }
+
+bool restartScreenCalibrationPoint(int pointIndex) {
+  const std::lock_guard lock(trackingMutex);
+  if (pointIndex < 0 || pointIndex >= 5 || calibrationWidth < 2 ||
+      calibrationHeight < 2)
+    return false;
+  calibrationPoints[pointIndex] = {};
+  calibrationStatus = {};
+  calibratedScreen = leftCalibration = rightCalibration = {};
+  latestGaze = {};
+  std::cout << "Trance screen calibration retry: point " << pointIndex + 1
+            << "/5, other points retained\n"
+            << std::flush;
+  return true;
+}
 
 int screenCalibrationSampleCount() { return samplesPerPoint; }
 
@@ -387,7 +452,7 @@ int addScreenCalibrationSample(int pointIndex, double x, double y,
     return point.count;
 
   if (point.candidateCount > 0 &&
-      sample.timestamp - point.lastTimestamp > maximumGazeSampleAge)
+      sample.timestamp - point.lastTimestamp > maximumCalibrationSampleGap)
     point = {};
   point.x = x;
   point.y = y;
