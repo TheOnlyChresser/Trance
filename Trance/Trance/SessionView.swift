@@ -25,6 +25,7 @@ struct SessionView: View {
     @State private var bpm = 60.0
     @State private var afslapningSamples: [Double] = []
     @State private var resultat: Double?
+    @State private var voice = VoiceGuide()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -60,6 +61,8 @@ struct SessionView: View {
                     // prikken vokser i 4 sekunder, mens man ånder ind, og krymper i 6 sekunder, mens man ånder ud
                     .phaseAnimator([false, true]) { dot, indaending in
                         dot.scaleEffect(indaending ? 2.5 : 1)
+                            // stemmen taler, når prikken begynder at krympe
+                            .onChange(of: indaending) { if !indaending { voice.exhaleBegan() } }
                     } animation: { indaending in
                         .easeInOut(duration: indaending ? 4 : 6)
                     }
@@ -87,6 +90,8 @@ struct SessionView: View {
                             resultat = afslapningSamples.reduce(0, +) / Double(afslapningSamples.count)
                         }
                     }
+                    // stemmen lægger sin plan for sessionen. derefter følger den prikken
+                    .onAppear { voice.start(for: duration) }
                     // scoren regnes ud i c++; her startes den, og pulsen og scoren hentes hvert 5. sekund
                     .task {
                         clearScoreCalibration()

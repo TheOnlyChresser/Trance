@@ -11,6 +11,9 @@ final class VoicePlayer {
 
     var isPlaying: Bool { player?.isPlaying ?? false }
 
+    /// Hvor længe filen varer. Nul, hvis den ikke kunne åbnes.
+    var duration: Duration { .seconds(player?.duration ?? 0) }
+
     init(_ filename: String) {
         let name = filename.hasSuffix(".opus") ? String(filename.dropLast(5)) : filename
         guard let url = Bundle.main.url(forResource: name, withExtension: "opus") else {
