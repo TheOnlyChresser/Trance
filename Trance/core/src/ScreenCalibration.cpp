@@ -10,12 +10,13 @@ namespace trance {
 namespace {
 
 constexpr int samplesPerPoint = 45;
-constexpr double maximumCalibrationError = 0.012;
+constexpr double maximumCalibrationError = 0.1;
 
 bool fresh(EyeTrackingSample sample, double now) {
   const double age = now - sample.timestamp;
   return sample.available && std::isfinite(now) &&
-         std::isfinite(sample.timestamp) && age >= 0 && age <= maximumGazeSampleAge;
+         std::isfinite(sample.timestamp) && age >= 0 &&
+         age <= maximumGazeSampleAge;
 }
 
 bool openEye(double closure) {
@@ -78,7 +79,7 @@ ScreenHit eyeHit(EyePose eye, double closure, ScreenRectangle &screen) {
   return intersectScreen(screen, {}, {0, 0, 1});
 }
 
-}
+} // namespace
 
 ScreenVector3 screenGridPoint(ScreenRectangle screen, int column, int row) {
   if (!screen.available || screen.pixelWidth < 2 || screen.pixelHeight < 2 ||
@@ -119,9 +120,9 @@ int addScreenCalibrationSample(int pointIndex, double x, double y,
       (point.count > 0 && (point.x != x || point.y != y)))
     return point.count;
 
-  const auto position = øjensporer::fokuspoint(
-      sample.leftEye.origin, sample.leftEye.zAxis,
-      sample.rightEye.origin, sample.rightEye.zAxis);
+  const auto position =
+      øjensporer::fokuspoint(sample.leftEye.origin, sample.leftEye.zAxis,
+                             sample.rightEye.origin, sample.rightEye.zAxis);
   if (!position)
     return point.count;
 
@@ -236,4 +237,4 @@ ScreenGaze copyScreenGaze(double now) {
   return latestGaze;
 }
 
-}
+} // namespace trance
