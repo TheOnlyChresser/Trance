@@ -10,14 +10,13 @@ using namespace trance;
 
 ScreenVector3 normalize(ScreenVector3 v) {
   const double length = std::hypot(v.x, v.y, v.z);
-  return {v.x / length, v.y / length, v.z / length};
+  return v * (1 / length);
 }
 
 EyePose eyeLookingAt(ScreenVector3 origin, ScreenVector3 target) {
   EyePose eye;
   eye.origin = origin;
-  eye.zAxis = normalize(
-      {target.x - origin.x, target.y - origin.y, target.z - origin.z});
+  eye.zAxis = normalize(target - origin);
   eye.xAxis = normalize(cross({0, 1, 0}, eye.zAxis));
   eye.yAxis = cross(eye.zAxis, eye.xAxis);
   return eye;
@@ -83,12 +82,12 @@ int main() {
     const auto x = points[index][0], y = points[index][1];
     const ScreenVector3 target{-0.035 + 0.07 * x, 0.005 - 0.14 * y, 0};
     int count = 0;
-    for (int sample = 0; sample < 45; ++sample) {
+    for (int sample = 0; sample < screenCalibrationSampleCount(); ++sample) {
       time += 0.02;
       count = addScreenCalibrationSample(index, x, y,
                                          sampleLookingAt(target, time), time);
     }
-    assert(count == 45);
+    assert(count == screenCalibrationSampleCount());
   }
   assert(finishScreenCalibration());
   const auto calibrated = copyCalibratedScreen();
@@ -115,6 +114,31 @@ int main() {
   sample.leftEyeClosure = 0.8;
   recordScreenGaze(sample, time);
   assert(!copyScreenGaze(time).combined.available);
+
+  assert(setFocusTarget(175, 1050, 32));
+  const double started = time;
+  startScores(started);
+
+  for (int index = 0; index <= 500; ++index) {
+    time = started + index * 0.02;
+    const auto target = index < 250 ? ScreenVector3{-0.0175, -0.1, 0}
+                                  : ScreenVector3{0.0175, -0.1, 0};
+    recordScreenGaze(sampleLookingAt(target, time), time);
+    recordScoreGaze(copyScreenGaze(time), time);
+  }
+
+  const auto focus = copyScores(time).fokusscore;
+  assert(focus.available && std::abs(focus.value - 0.5) < 1e-8);
+  assert(std::abs(focus.coverage - 1) < 1e-8);
+
+  time += 0.02;
+  sample = sampleLookingAt({-0.0175, -0.1, 0}, time);
+  sample.leftEyeClosure = 0.8;
+  recordScreenGaze(sample, time);
+  recordScoreGaze(copyScreenGaze(time), time);
+  assert(copyScores(time).fokusscore.available);
+  assert(!copyScores(time + 1.1).fokusscore.available);
+  stopScores();
 
   // this test resets the calibrated screen to check that its availability is
   // cleared.

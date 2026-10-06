@@ -36,7 +36,7 @@ struct State {
   double baselineSum = 0, baselineStart = 0, baselineLast = 0;
   int baselineCount = 0;
 
-  Window heart{30, 15, 0}, gaze{10, 0.25, 1};
+  Window heart{30, 15, 0}, gaze{10, maximumGazeSampleAge, 1};
 };
 
 State state;
@@ -47,7 +47,7 @@ bool running(double now) {
 }
 
 bool isFresh(double time, double now, double maxAge) {
-  return time >= state.started && time <= now && now - time < maxAge;
+  return time >= state.started && time <= now && now - time <= maxAge;
 }
 
 void clearHistory() {

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cmath>
+#include <optional>
+
 // sturct til oplæring af 3d vektore
 struct vec3d {
   double x = 0;
@@ -50,19 +53,15 @@ inline vec3d cross(vec3d a, vec3d b) {
   return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
 }
 
-struct plane {
-  vec3d normalVector;
-  vec3d point;
-};
+inline double length(vec3d value) { return std::sqrt(dot(value, value)); }
+
+inline bool finite(vec3d value) {
+  return std::isfinite(value.x) && std::isfinite(value.y) &&
+         std::isfinite(value.z);
+}
 
 class øjensporer {
 public:
-  øjensporer();
-  ~øjensporer();
-
-  void fokuspoint();
-  void ScreenPlane();
-
-private:
-  plane m_screenPlane;
+  static std::optional<vec3d> fokuspoint(vec3d leftOrigin, vec3d leftDirection,
+                                       vec3d rightOrigin, vec3d rightDirection);
 };

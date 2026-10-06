@@ -21,6 +21,7 @@ private final class ScreenCalibrationModel {
             return fail("Kalibrering kræver en iPhone med ansigtssporing og kameraadgang.")
         }
         trance.beginScreenCalibration(Int32(resolution.width), Int32(resolution.height))
+        let sampleCount = Int(trance.screenCalibrationSampleCount())
         SensorAccess.start()
         do {
             for index in 0..<5 {
@@ -29,7 +30,7 @@ private final class ScreenCalibrationModel {
                 let start = Date().timeIntervalSince1970
                 let target = targetPosition(index: index, size: size)
                 var count = 0
-                while count < 45 {
+                while count < sampleCount {
                     try Task.checkCancellation()
                     let now = Date().timeIntervalSince1970
                     count = Int(trance.addScreenCalibrationSample(

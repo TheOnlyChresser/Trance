@@ -6,14 +6,27 @@
 //
 
 import Testing
+@testable import Trance
 
 struct TranceTests {
 
-    // this placeholder has no input values or assertions yet, so it does not check app behavior.
-    @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-        // Swift Testing Documentation
-        // https://developer.apple.com/documentation/testing
+    @Test @MainActor func unavailableSensors() {
+        clearScoreCalibration()
+        startScoreSession()
+        defer { stopScoreSession() }
+
+        var face = TranceFaceData()
+        face.focusPointAvailable = true
+        face.focusPoint = TranceVector3(x: 1, y: 2, z: 3)
+        updateFace(face)
+
+        let stored = copySensorSnapshot().face
+        #expect(!stored.focusPointAvailable)
+        #expect(stored.focusPoint.x == 0 && stored.focusPoint.y == 0 && stored.focusPoint.z == 0)
+
+        let scores = copySessionScores()
+        #expect(!scores.fokusscore.available)
+        #expect(!scores.afslapningsscore.available)
     }
 
 }

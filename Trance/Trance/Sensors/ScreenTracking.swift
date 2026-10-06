@@ -24,24 +24,21 @@ public nonisolated struct TranceScreenGaze: Sendable {
 }
 
 public nonisolated func copyScreenGaze() -> TranceScreenGaze {
-    let gaze = trance.copyScreenGaze(Date().timeIntervalSince1970)
-    return TranceScreenGaze(
-        timestamp: gaze.timestamp,
-        leftEye: screenHit(gaze.leftEye), rightEye: screenHit(gaze.rightEye),
-        combined: screenHit(gaze.combined),
-        screenInLeftEye: screenPlane(gaze.screenInLeftEye),
-        screenInRightEye: screenPlane(gaze.screenInRightEye))
+    screenGaze(trance.copyScreenGaze(Date().timeIntervalSince1970))
 }
 
 public nonisolated func copyCalibratedScreen() -> TranceScreenPlane {
     screenPlane(trance.copyCalibratedScreen())
 }
 
-nonisolated func updateScreenTracking(_ face: TranceFaceData) {
+nonisolated func updateScreenTracking(_ face: TranceFaceData) -> TranceScreenGaze {
     let now = Date().timeIntervalSince1970
 
     trance.recordScreenGaze(eyeTrackingSample(face), now)
-    trance.recordScoreGaze(trance.copyScreenGaze(now), now)
+    let gaze = trance.copyScreenGaze(now)
+    trance.recordScoreGaze(gaze, now)
+
+    return screenGaze(gaze)
 }
 
 nonisolated func eyeTrackingSample(_ face: TranceFaceData) -> trance.EyeTrackingSample {
@@ -74,6 +71,15 @@ private nonisolated func screenVector(_ vector: TranceVector4) -> trance.ScreenV
 
 private nonisolated func swiftVector(_ vector: trance.ScreenVector3) -> TranceVector3 {
     TranceVector3(x: Float(vector.x), y: Float(vector.y), z: Float(vector.z))
+}
+
+private nonisolated func screenGaze(_ gaze: trance.ScreenGaze) -> TranceScreenGaze {
+    TranceScreenGaze(
+        timestamp: gaze.timestamp,
+        leftEye: screenHit(gaze.leftEye), rightEye: screenHit(gaze.rightEye),
+        combined: screenHit(gaze.combined),
+        screenInLeftEye: screenPlane(gaze.screenInLeftEye),
+        screenInRightEye: screenPlane(gaze.screenInRightEye))
 }
 
 private nonisolated func screenHit(_ hit: trance.ScreenHit) -> TranceScreenHit {

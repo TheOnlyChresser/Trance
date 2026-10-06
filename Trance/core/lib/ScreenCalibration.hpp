@@ -6,6 +6,8 @@ namespace trance {
 
 using ScreenVector3 = vec3d;
 
+inline constexpr double maximumGazeSampleAge = 0.25;
+
 struct EyePose {
   ScreenVector3 origin;
   ScreenVector3 xAxis, yAxis, zAxis;
@@ -41,12 +43,14 @@ struct ScreenGaze {
 };
 
 ScreenVector3 screenGridPoint(ScreenRectangle screen, int column, int row);
+bool validEye(EyePose eye);
 ScreenHit intersectScreen(ScreenRectangle screen, ScreenVector3 origin,
                           ScreenVector3 direction);
 ScreenRectangle screenRelativeToEye(ScreenRectangle screen, EyePose eye);
 
 void beginScreenCalibration(int pixelWidth, int pixelHeight);
 void resetScreenCalibration();
+int screenCalibrationSampleCount();
 int addScreenCalibrationSample(int pointIndex, double x, double y,
                                EyeTrackingSample sample, double now);
 bool finishScreenCalibration();
