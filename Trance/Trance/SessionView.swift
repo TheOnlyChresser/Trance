@@ -115,6 +115,11 @@ struct SessionView: View {
                     }
             }
         }
+        .overlay {
+            if resultat == nil {
+                GazeDotView()
+            }
+        }
         .statusBarHidden()
         // haptic feedback når tiden er gået
         .sensoryFeedback(.impact(flexibility: .soft), trigger: resultat)

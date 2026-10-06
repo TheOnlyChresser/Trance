@@ -5,10 +5,58 @@
 //  Created by Chresten Soelberg on 01/09/2026.
 //
 
+import Foundation
 import Testing
 @testable import Trance
 
 struct TranceTests {
+
+    @Test func gazeDotMapsNativePixels() {
+        var screen = TranceScreenPlane()
+        screen.available = true
+        screen.pixelWidth = 1080
+        screen.pixelHeight = 2340
+        let size = CGSize(width: 375, height: 812)
+
+        var gaze = TranceScreenHit()
+        gaze.available = true
+        gaze.onScreen = true
+        #expect(gazeDotPosition(gaze, screen: screen, size: size) == .zero)
+
+        gaze.x = 539.5
+        gaze.y = 1169.5
+        #expect(gazeDotPosition(gaze, screen: screen, size: size)
+                == CGPoint(x: 187.5, y: 406))
+
+        gaze.x = 1079
+        gaze.y = 2339
+        #expect(gazeDotPosition(gaze, screen: screen, size: size)
+                == CGPoint(x: 375, y: 812))
+
+        #expect(gazeDotPosition(gaze, screen: screen, size: .zero) == nil)
+        #expect(gazeDotPosition(gaze, screen: screen,
+                                size: CGSize(width: 812, height: 375)) == nil)
+        gaze.onScreen = false
+        #expect(gazeDotPosition(gaze, screen: screen, size: size) == nil)
+        gaze.onScreen = true
+        gaze.available = false
+        #expect(gazeDotPosition(gaze, screen: screen, size: size) == nil)
+        gaze.available = true
+        gaze.x = .nan
+        #expect(gazeDotPosition(gaze, screen: screen, size: size) == nil)
+        gaze.x = 0
+        screen.available = false
+        #expect(gazeDotPosition(gaze, screen: screen, size: size) == nil)
+
+        screen.available = true
+        screen.pixelWidth = 2340
+        screen.pixelHeight = 1080
+        gaze.x = 1169.5
+        gaze.y = 539.5
+        #expect(gazeDotPosition(gaze, screen: screen,
+                                size: CGSize(width: 812, height: 375))
+                == CGPoint(x: 406, y: 187.5))
+    }
 
     @Test func faceSamplesKeepLatestValue() {
         let samples = FaceSampleMailbox()

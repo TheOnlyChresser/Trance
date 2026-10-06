@@ -32,6 +32,21 @@ public nonisolated func copyCalibratedScreen() -> TranceScreenPlane {
     screenPlane(trance.copyCalibratedScreen())
 }
 
+nonisolated func gazeDotPosition(
+    _ gaze: TranceScreenHit, screen: TranceScreenPlane, size: CGSize
+) -> CGPoint? {
+    guard gaze.available, gaze.onScreen, screen.available,
+          screen.pixelWidth > 1, screen.pixelHeight > 1,
+          size.width.isFinite, size.height.isFinite,
+          size.width > 0, size.height > 0,
+          (screen.pixelWidth > screen.pixelHeight) == (size.width > size.height),
+          gaze.x.isFinite, gaze.y.isFinite else { return nil }
+
+    return CGPoint(
+        x: gaze.x / Double(screen.pixelWidth - 1) * Double(size.width),
+        y: gaze.y / Double(screen.pixelHeight - 1) * Double(size.height))
+}
+
 nonisolated func screenCalibrationFailureMessage() -> String {
     let status = trance.copyScreenCalibrationStatus()
     let value = String(format: "%.1f", status.measuredValue * 100)
