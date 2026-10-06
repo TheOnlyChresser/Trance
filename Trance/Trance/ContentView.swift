@@ -11,8 +11,6 @@ import SwiftUI
 struct ContentView: View {
     @State private var minutes = 10
     @State private var isRunning = false
-    @State private var isCalibrating = false
-    @State private var startAfterCalibration = false
 
     private let durations = [1, 2, 5, 10, 30, 60]
 
@@ -30,7 +28,9 @@ struct ContentView: View {
                     Text("\(minutes) min")
                 }
             }
+            #if IOS
             .pickerStyle(.wheel)
+            #endif
             .frame(width: 240)
             // hjulet kan ikke få større rækker, så det hele gøres større
             .scaleEffect(1.5)
@@ -38,10 +38,7 @@ struct ContentView: View {
 
             Spacer()
 
-            Button("Start") {
-                startAfterCalibration = false
-                isCalibrating = true
-            }
+            Button("Start") { isRunning = true }
             .buttonStyle(.glassProminent)
             .controlSize(.extraLarge)
             .font(.headline)
@@ -50,23 +47,11 @@ struct ContentView: View {
         }
         .padding()
         .background { MeshBackground() }
-        .fullScreenCover(isPresented: $isCalibrating, onDismiss: {
-            if startAfterCalibration {
-                startAfterCalibration = false
-                isRunning = true
-            }
-        }) {
-            ScreenCalibrationView {
-                startAfterCalibration = false
-                isCalibrating = false
-            } onFinish: {
-                startAfterCalibration = true
-                isCalibrating = false
-            }
-        }
+        #if IOS
         .fullScreenCover(isPresented: $isRunning) {
             SessionView(duration: .seconds(minutes * 60)) { isRunning = false }
         }
+        #endif
     }
 }
 
