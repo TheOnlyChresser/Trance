@@ -14,6 +14,9 @@ import Foundation
         private var pendingQueries: [Int: HKSampleQuery] = [:]
         private var requestNumber = 0
         private var faceSession: ARSession?
+        nonisolated private let faceQueue = DispatchQueue(
+            label: "com.Chresten.Trance.faceTracking", qos: .userInitiated)
+        nonisolated private let faceSamples = FaceSampleMailbox()
         private var lastPulse = TranceHeartRate()
         private var faceAvailable = false
         private var hardware = TranceHardware()
@@ -57,7 +60,7 @@ import Foundation
                         let session = ARSession()
                         self.faceSession = session
                         session.delegate = self
-                        session.delegateQueue = .main
+                        session.delegateQueue = self.faceQueue
                         session.run(ARFaceTrackingConfiguration())
                     }
                 }
@@ -153,6 +156,7 @@ import Foundation
             faceSession?.pause()
             faceSession?.delegate = nil
             faceSession = nil
+            _ = faceSamples.take()
             if WCSession.isSupported(), WCSession.default.delegate === self {
                 WCSession.default.delegate = nil
             }
@@ -184,12 +188,13 @@ import Foundation
                     c0: Self.vector4(head.columns.0), c1: Self.vector4(head.columns.1),
                     c2: Self.vector4(head.columns.2), c3: Self.vector4(head.columns.3))
             }
-            let copy = value
-            DispatchQueue.main.async { [weak self] in
-                guard let self, self.running else { return }
-                if copy.available || self.faceAvailable {
-                    self.faceAvailable = copy.available
-                    updateFace(copy)
+            if faceSamples.offer(value) {
+                Task { @MainActor [weak self] in
+                    guard let self, let copy = self.faceSamples.take(), self.running else { return }
+                    if copy.available || self.faceAvailable {
+                        self.faceAvailable = copy.available
+                        updateFace(copy)
+                    }
                 }
             }
         }

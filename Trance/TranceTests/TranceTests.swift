@@ -10,6 +10,26 @@ import Testing
 
 struct TranceTests {
 
+    @Test func faceSamplesKeepLatestValue() {
+        let samples = FaceSampleMailbox()
+        for index in 1...1000 {
+            var face = TranceFaceData()
+            face.available = true
+            face.timestamp = Double(index)
+            #expect(samples.offer(face) == (index == 1))
+        }
+        #expect(samples.take()?.timestamp == 1000)
+        #expect(samples.take() == nil)
+
+        var face = TranceFaceData()
+        face.available = true
+        #expect(samples.offer(face))
+        #expect(!samples.offer(TranceFaceData()))
+        #expect(samples.take()?.available == false)
+        #expect(samples.offer(face))
+        #expect(samples.take()?.available == true)
+    }
+
     @Test @MainActor func unavailableSensors() {
         clearScoreCalibration()
         startScoreSession()

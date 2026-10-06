@@ -310,6 +310,56 @@ int main() {
          ScreenCalibrationFailure::pointError);
   assert(!copyCalibratedScreen().available);
 
+  const double insetX = 24.0 / 375, insetY = 24.0 / 812;
+  const std::array<std::array<double, 2>, 5> loggedTargets = {
+      {{0.5, 0.5},
+       {insetX, insetY},
+       {1 - insetX, insetY},
+       {1 - insetX, 1 - insetY},
+       {insetX, 1 - insetY}}};
+  const std::array<std::array<ScreenVector3, 5>, 2> loggedAttempts = {{
+      {{{0.00746777, 0.00871881, 0},
+        {-0.0133266, 0.00872257, 0},
+        {-0.0130491, 0.0149859, 0},
+        {0.00890919, 0.0163464, 0},
+        {0.00918195, 0.0114002, 0}}},
+      {{{-0.0180163, 0.0139287, 0},
+        {-0.0378194, 0.0107729, 0},
+        {-0.0381478, 0.01707, 0},
+        {-0.00619543, 0.0170861, 0},
+        {-0.0021228, 0.0130957, 0}}},
+  }};
+  for (int attempt = 0; attempt < 2; ++attempt) {
+    beginScreenCalibration(1080, 2340);
+    for (int index = 0; index < 5; ++index) {
+      for (int n = 0; n < screenCalibrationSampleCount(); ++n) {
+        time += 0.02;
+        EyeTrackingSample observed;
+        observed.available = true;
+        observed.timestamp = time;
+        const auto mean = loggedAttempts[attempt][index];
+        observed.leftEye = eyeLookingAt({0.0802, 0.0165, -0.4425},
+                                        mean + ScreenVector3{0, 0.015, 0});
+        observed.rightEye = eyeLookingAt({0.0848, -0.0444, -0.4349},
+                                         mean + ScreenVector3{0, -0.015, 0});
+        const int count =
+            addScreenCalibrationSample(index, loggedTargets[index][0],
+                                       loggedTargets[index][1], observed, time);
+        assert(count == n + 1);
+      }
+    }
+    const bool accepted = finishScreenCalibration();
+    assert(accepted == (attempt == 1));
+    if (accepted) {
+      const double error = copyCalibratedScreen().normalizedCalibrationError;
+      assert(error > 0.099 && error <= 0.1);
+    } else {
+      assert(copyScreenCalibrationStatus().failure ==
+             ScreenCalibrationFailure::pointError);
+      assert(!copyCalibratedScreen().available);
+    }
+  }
+
   resetScreenCalibration();
   assert(copyScreenCalibrationStatus().failure ==
          ScreenCalibrationFailure::none);

@@ -36,6 +36,26 @@ public nonisolated struct SensorSnapshot: Sendable {
     public var hardware = TranceHardware()
 }
 
+nonisolated final class FaceSampleMailbox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var latest: TranceFaceData?
+
+    func offer(_ value: TranceFaceData) -> Bool {
+        lock.withLock {
+            let needsDelivery = latest == nil
+            latest = value
+            return needsDelivery
+        }
+    }
+
+    func take() -> TranceFaceData? {
+        lock.withLock {
+            defer { latest = nil }
+            return latest
+        }
+    }
+}
+
 private nonisolated final class SensorStore: @unchecked Sendable {
     private let lock = NSLock()
     private var latest = SensorSnapshot()

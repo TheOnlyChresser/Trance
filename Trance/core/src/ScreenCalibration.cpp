@@ -123,6 +123,61 @@ ScreenHit eyeHit(EyePose eye, double closure, ScreenRectangle calibration,
   return intersectScreen(screen, {}, {0, 0, 1});
 }
 
+std::optional<ScreenRectangle> fitPixelMapping(ScreenRectangle screen,
+                                               int eye) {
+  std::array<std::array<double, 5>, 3> equations{};
+  for (const auto &point : calibrationPoints) {
+    const auto mean = pointMean(point, eye);
+    const auto hit =
+        intersectScreen(screen, mean + ScreenVector3{0, 0, 1}, {0, 0, -1});
+    if (!hit.available)
+      return std::nullopt;
+    const std::array features{hit.x / (screen.pixelWidth - 1),
+                              hit.y / (screen.pixelHeight - 1), 1.0};
+    for (int row = 0; row < 3; ++row) {
+      for (int column = 0; column < 3; ++column)
+        equations[row][column] += features[row] * features[column];
+      equations[row][3] += features[row] * point.x;
+      equations[row][4] += features[row] * point.y;
+    }
+  }
+  for (int column = 0; column < 3; ++column) {
+    int pivot = column;
+    for (int row = column + 1; row < 3; ++row)
+      if (std::abs(equations[row][column]) > std::abs(equations[pivot][column]))
+        pivot = row;
+    const double divisor = equations[pivot][column];
+    if (!std::isfinite(divisor) || std::abs(divisor) < 1e-9)
+      return std::nullopt;
+    std::swap(equations[column], equations[pivot]);
+    for (double &coefficient : equations[column])
+      coefficient /= divisor;
+    for (int row = 0; row < 3; ++row) {
+      if (row == column)
+        continue;
+      const double factor = equations[row][column];
+      for (int index = 0; index < 5; ++index)
+        equations[row][index] -= factor * equations[column][index];
+    }
+  }
+  const double a = equations[0][3], b = equations[1][3];
+  const double c = equations[0][4], d = equations[1][4];
+  const double e = equations[2][3], f = equations[2][4];
+  const double determinant = a * d - b * c;
+  if (!std::isfinite(determinant) || std::abs(determinant) < 1e-9)
+    return std::nullopt;
+  const auto horizontal = screen.horizontal, vertical = screen.vertical;
+  screen.topLeft = screen.topLeft +
+                   horizontal * ((b * f - d * e) / determinant) +
+                   vertical * ((c * e - a * f) / determinant);
+  screen.horizontal = (horizontal * d - vertical * c) * (1 / determinant);
+  screen.vertical = (vertical * a - horizontal * b) * (1 / determinant);
+  if (!finite(screen.topLeft) || !finite(screen.horizontal) ||
+      !finite(screen.vertical))
+    return std::nullopt;
+  return screen;
+}
+
 std::optional<ScreenRectangle> fitCalibration(int eye) {
   const auto coefficients = fitRectangle(eye);
   if (!coefficients) {
@@ -168,6 +223,14 @@ std::optional<ScreenRectangle> fitCalibration(int eye) {
   screen.vertical = vertical;
   screen.pixelWidth = calibrationWidth;
   screen.pixelHeight = calibrationHeight;
+
+  const auto mapping = fitPixelMapping(screen, eye);
+  if (!mapping) {
+    rejectCalibration(ScreenCalibrationFailure::axes,
+                      "screen mapping is singular", 0);
+    return std::nullopt;
+  }
+  screen = *mapping;
 
   double squaredError = 0, normalizedSquaredError = 0;
   for (const auto &point : calibrationPoints) {
@@ -224,7 +287,7 @@ void beginScreenCalibration(int pixelWidth, int pixelHeight) {
   calibrationWidth = pixelWidth;
   calibrationHeight = pixelHeight;
   if (pixelWidth >= 2 && pixelHeight >= 2)
-    std::cout << "Trance screen calibration started: camera-plane affine v3, "
+    std::cout << "Trance screen calibration started: direct pixel mapping v4, "
               << pixelWidth << 'x' << pixelHeight << " px, " << samplesPerPoint
               << " samples/point\n"
               << std::flush;
