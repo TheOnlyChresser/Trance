@@ -318,8 +318,74 @@ int main() {
   assert(!finishScreenCalibration());
   assert(copyScreenCalibrationStatus().failure ==
          ScreenCalibrationFailure::pointError);
-  assert(copyScreenCalibrationStatus().pointIndex == 0);
+  assert(copyScreenCalibrationStatus().retryPointIndex == 0);
   assert(!copyCalibratedScreen().available);
+
+  assert(!restartScreenCalibrationPoint(-1));
+  assert(!restartScreenCalibrationPoint(5));
+  assert(copyScreenCalibrationStatus().retryPointIndex == 0);
+  assert(restartScreenCalibrationPoint(0));
+  assert(!finishScreenCalibration());
+  assert(copyScreenCalibrationStatus().failure ==
+         ScreenCalibrationFailure::samples);
+  assert(copyScreenCalibrationStatus().pointIndex == 0);
+  assert(copyScreenCalibrationStatus().sampleCount == 0);
+  for (int n = 0; n < screenCalibrationSampleCount(); ++n) {
+    time += 0.025;
+    assert(addScreenCalibrationSample(0, 0.5, 0.5,
+                                      sampleLookingAt({0, -0.065, 0}, time),
+                                      time) == n + 1);
+  }
+  assert(finishScreenCalibration());
+  assert(copyCalibratedScreen().normalizedCalibrationError < 1e-8);
+  time += 0.025;
+  recordScreenGaze(sampleLookingAt({0, -0.065, 0}, time), time);
+  assert(copyScreenGaze(time).combined.available);
+  assert(restartScreenCalibrationPoint(3));
+  assert(!copyCalibratedScreen().available);
+  assert(!copyScreenGaze(time).combined.available);
+  assert(!finishScreenCalibration());
+  assert(copyScreenCalibrationStatus().pointIndex == 3);
+  for (int n = 0; n < screenCalibrationSampleCount(); ++n) {
+    time += 0.025;
+    const auto x = points[3][0], y = points[3][1];
+    addScreenCalibrationSample(
+        3, x, y,
+        sampleLookingAt({-0.035 + 0.07 * x, 0.005 - 0.14 * y, 0}, time), time);
+  }
+  assert(finishScreenCalibration());
+
+  for (int affectedPoint = 0; affectedPoint < 5; ++affectedPoint) {
+    beginScreenCalibration(701, 1401);
+    for (int index = 0; index < 5; ++index) {
+      const auto x = points[index][0], y = points[index][1];
+      auto target = ScreenVector3{-0.035 + 0.07 * x, 0.005 - 0.14 * y, 0};
+      if (index == affectedPoint)
+        target += ScreenVector3{0.035, 0.05, 0};
+      for (int n = 0; n < screenCalibrationSampleCount(); ++n) {
+        time += 0.025;
+        addScreenCalibrationSample(index, x, y, sampleLookingAt(target, time),
+                                   time);
+      }
+    }
+    assert(!finishScreenCalibration());
+    const auto status = copyScreenCalibrationStatus();
+    assert(status.failure == ScreenCalibrationFailure::pointError ||
+           status.failure == ScreenCalibrationFailure::meanError);
+    assert(status.retryPointMask & (1 << affectedPoint));
+    assert(restartScreenCalibrationPoint(affectedPoint));
+    const auto x = points[affectedPoint][0], y = points[affectedPoint][1];
+    for (int n = 0; n < screenCalibrationSampleCount(); ++n) {
+      time += 0.025;
+      assert(
+          addScreenCalibrationSample(
+              affectedPoint, x, y,
+              sampleLookingAt({-0.035 + 0.07 * x, 0.005 - 0.14 * y, 0}, time),
+              time) == n + 1);
+    }
+    assert(finishScreenCalibration());
+    assert(copyCalibratedScreen().normalizedCalibrationError < 1e-8);
+  }
 
   const auto projectedTarget = [](double x, double y) {
     return ScreenVector3{-0.02 + 0.035 * (y - 0.5), 0.012 + 0.008 * (x - 0.5),
@@ -397,6 +463,36 @@ int main() {
   }
 
   beginScreenCalibration(701, 1401);
+  for (int index = 0; index < 5; ++index) {
+    const auto x = points[index][0], y = points[index][1];
+    const auto target = projectedTarget(x, y);
+    for (int n = 0; n < screenCalibrationSampleCount(); ++n) {
+      if (n > 0 && n % 8 == 0) {
+        time += 0.35;
+        auto blink = sampleWithProjectedEyes(target, target, time);
+        blink.leftEyeClosure = blink.rightEyeClosure = 0.9;
+        assert(addScreenCalibrationSample(index, x, y, blink, time) == n);
+        time += 0.35;
+        auto lost = blink;
+        lost.available = false;
+        assert(addScreenCalibrationSample(index, x, y, lost, time) == n);
+        auto stale = sampleWithProjectedEyes(target, target, time - 0.3);
+        assert(addScreenCalibrationSample(index, x, y, stale, time) == n);
+      }
+      time += 0.025;
+      auto moving = sampleWithProjectedEyes(target, target, time);
+      const ScreenVector3 movement{0.012 * std::sin(n * 0.7),
+                                   0.008 * std::cos(n * 0.9),
+                                   0.015 * std::sin(n * 0.6)};
+      moving.leftEye = eyeLookingAt(moving.leftEye.origin + movement, target);
+      moving.rightEye = eyeLookingAt(moving.rightEye.origin + movement, target);
+      assert(addScreenCalibrationSample(index, x, y, moving, time) == n + 1);
+    }
+  }
+  assert(finishScreenCalibration());
+  assert(copyCalibratedScreen().normalizedCalibrationError < 1e-8);
+
+  beginScreenCalibration(701, 1401);
   for (int index = 0; index < 8; ++index) {
     time += 0.025;
     const auto oldTarget = centerTarget + ScreenVector3{0, 0.018, 0};
@@ -404,7 +500,7 @@ int main() {
                0, 0.5, 0.5, sampleWithProjectedEyes(oldTarget, oldTarget, time),
                time) == index + 1);
   }
-  time += 1;
+  time += 2;
   for (int index = 0; index < 5; ++index) {
     const auto x = points[index][0], y = points[index][1];
     const auto target = projectedTarget(x, y);
@@ -469,6 +565,7 @@ int main() {
   }
 
   resetScreenCalibration();
+  assert(!restartScreenCalibrationPoint(0));
   assert(copyScreenCalibrationStatus().failure ==
          ScreenCalibrationFailure::none);
   std::cout << "Screen calibration and score tests passed\n";

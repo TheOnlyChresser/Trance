@@ -57,7 +57,8 @@ enum class ScreenCalibrationFailure {
 
 struct ScreenCalibrationStatus {
   ScreenCalibrationFailure failure = ScreenCalibrationFailure::none;
-  int pointIndex = -1, sampleCount = 0;
+  int pointIndex = -1, retryPointIndex = -1, sampleCount = 0;
+  int retryPointMask = 0;
   double measuredValue = 0, limit = 0;
 };
 
@@ -69,6 +70,7 @@ ScreenRectangle screenRelativeToEye(ScreenRectangle screen, EyePose eye);
 
 void beginScreenCalibration(int pixelWidth, int pixelHeight);
 void resetScreenCalibration();
+bool restartScreenCalibrationPoint(int pointIndex);
 int screenCalibrationSampleCount();
 int addScreenCalibrationSample(int pointIndex, double x, double y,
                                EyeTrackingSample sample, double now);
