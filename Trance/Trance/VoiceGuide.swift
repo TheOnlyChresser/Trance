@@ -70,6 +70,16 @@ final class VoiceGuide {
         // i sessioner under 20 minutter springes billederne over
         planDeepening(until: ends[3], withImagery: seconds >= 20 * 60)
         planRest(until: ends[4])
+
+        // blev der slet ikke plads til at bede om at lukke øjnene, må opvågningen heller ikke bede om at åbne dem.
+        // så slutter sessionen i stedet med, at energien vender tilbage
+        if used.isDisjoint(with: VoiceCase.eyeClosing(.invitation).files) {
+            for breath in awakeningStart..<totalBreaths {
+                plan[breath] = nil
+            }
+            nextFreeBreath = totalBreaths - 1
+            add(VoiceCase.awakening(.arriving).files[0], silence: 0, before: totalBreaths)
+        }
     }
 
     /// Kaldes af SessionView, hver gang punktet begynder at blive mindre.
@@ -170,8 +180,10 @@ final class VoiceGuide {
         // fasen slutter med nedtællingen, så opmuntringerne skal være færdige, inden den begynder
         let countdownStart = end - breathsNeeded(for: countdown[0])
 
+        // opfordringen til at lukke øjnene skal med, selv når fasen er for kort til den i en helt kort session,
+        // ligesom åbningen i fase 1. ellers beder opvågningen om at åbne øjne, der aldrig blev bedt om at lukke
         for file in VoiceCase.eyeClosing(.invitation).files {
-            add(file, silence: 1, before: end)
+            add(file, silence: 1, before: awakeningStart)
         }
         for file in VoiceCase.eyeClosing(.encouragement).files.shuffled() {
             add(file, silence: 1, before: countdownStart)

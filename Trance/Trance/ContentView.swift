@@ -28,9 +28,7 @@ struct ContentView: View {
                     Text("\(minutes) min")
                 }
             }
-            #if IOS
             .pickerStyle(.wheel)
-            #endif
             .frame(width: 240)
             // hjulet kan ikke få større rækker, så det hele gøres større
             .scaleEffect(1.5)
@@ -47,11 +45,9 @@ struct ContentView: View {
         }
         .padding()
         .background { MeshBackground() }
-        #if IOS
         .fullScreenCover(isPresented: $isRunning) {
             SessionView(duration: .seconds(minutes * 60)) { isRunning = false }
         }
-        #endif
     }
 }
 
