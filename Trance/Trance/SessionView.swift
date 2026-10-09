@@ -73,7 +73,6 @@ struct SessionView: View {
                     } action: { point in
                         focusPoint = point
                     }
-                    .onChange(of: focusPoint) { _, _ in configureScreenFocus() }
                     .padding(.bottom, 128)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     // prikken forsvinder hurtigt, så den ikke ligger oven på teksten der kommer frem
@@ -95,7 +94,6 @@ struct SessionView: View {
                     // scoren regnes ud i c++; her startes den, og pulsen og scoren hentes hvert 5. sekund
                     .task {
                         clearScoreCalibration()
-                        configureScreenFocus()
                         startScoreSession()
 
                         // uret måler kun pulsen ofte nok til scoren, mens det kører en workout
