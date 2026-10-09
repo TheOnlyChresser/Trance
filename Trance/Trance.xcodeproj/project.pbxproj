@@ -333,8 +333,8 @@
 		7829661B464441B1B7E5C42B /* Debug configuration for PBXNativeTarget "TranceWatch" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-						ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-		CODE_SIGN_ENTITLEMENTS = TranceWatch.entitlements;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = TranceWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = F2F76QVQYS;
@@ -369,8 +369,8 @@
 		9AEFF02D5EB14BB68DB9CEFF /* Release configuration for PBXNativeTarget "TranceWatch" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-						ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-		CODE_SIGN_ENTITLEMENTS = TranceWatch.entitlements;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = TranceWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = F2F76QVQYS;

@@ -129,28 +129,6 @@ struct SessionView: View {
         // haptic feedback når tiden er gået
         .sensoryFeedback(.impact(flexibility: .soft), trigger: resultat)
     }
-
-    private func configureScreenFocus() {
-        #if os(iOS)
-        let screen = copyCalibratedScreen()
-        guard screen.available, let focusPoint else { return }
-
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let scene = scenes.first { $0.activationState == .foregroundActive }
-        guard let scene else { return }
-
-        let bounds = scene.screen.bounds
-        guard bounds.width > 0, bounds.height > 0 else { return }
-
-        let scaleX = Double(screen.pixelWidth - 1) / Double(bounds.width)
-        let scaleY = Double(screen.pixelHeight - 1) / Double(bounds.height)
-
-        let x = Double(focusPoint.x - bounds.minX) * scaleX
-        let y = Double(focusPoint.y - bounds.minY) * scaleY
-
-        configureFocusScore(x: x, y: y, radius: 32 * scaleX)
-        #endif
-    }
 }
 
 #Preview {
